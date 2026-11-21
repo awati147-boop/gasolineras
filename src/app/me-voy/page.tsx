@@ -11,7 +11,8 @@ export default async function MeVoy() {
   const clave = process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
 
   return (
-    <main className={styles.main}>
+    <main className={`${styles.main} ${styles.centrado}`}>
+      <div className={styles.proxIcono} aria-hidden>🚗</div>
       <h1 className={styles.titulo}>¿Te vas? Deja tu plaza</h1>
       <p className={styles.fecha}>Avisaremos a quien busca aparcamiento cerca. Sin registro.</p>
       <DejarPlaza url={url} clave={clave} />
