@@ -6,6 +6,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./page.module.css";
 import { distintivo } from "@/lib/marcas";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
+import { nombrePropio } from "@/lib/texto";
+import { IconoBuscar, IconoPin, IconoSurtidor, IconoUbicacion } from "./Iconos";
 
 const CARBURANTES = [
   { id: "Gasolina 95 E5", nombre: "Gasolina 95" },
@@ -22,7 +24,7 @@ type Gasolinera = {
 
 const LITROS = 50;
 const ZONA_INICIAL: [number, number, number, number] = [-1.1, 37.85, 0.25, 38.95]; // provincia de Alicante
-const COLORES = { verde: "#1a9850", amarillo: "#e6a700", rojo: "#d73027" };
+const COLORES = { verde: "#16a34a", amarillo: "#d98e04", rojo: "#d23b2f" };
 
 const euros = (p: number, dec = 3) => p.toFixed(dec).replace(".", ",");
 const escapar = (s: string) =>
@@ -194,10 +196,10 @@ export default function Explorador() {
             .setHTML(
               `<div class="ficha-cab">
                  <span class="marca" style="background:${d.color}">${escapar(d.texto)}</span>
-                 <div><strong>${escapar(g.rotulo)}</strong><small>${escapar(g.localidad)}</small></div>
+                 <div><strong>${escapar(g.rotulo)}</strong><small>${escapar(nombrePropio(g.localidad))}</small></div>
                </div>
                <div class="ficha-precio"><b>${euros(Number(g.precio))} €</b><span>/l · ${escapar(nombreCarb)}</span></div>
-               <p>📍 ${escapar(g.direccion)}</p>
+               <p>📍 ${escapar(nombrePropio(g.direccion))}</p>
                <p>🕒 ${escapar(g.horario)}</p>
                <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
             )
@@ -258,18 +260,27 @@ export default function Explorador() {
   const masCara = lista[lista.length - 1];
   const ahorro = masBarata && masCara && !recortado ? (masCara.precio - masBarata.precio) * LITROS : 0;
 
+  // Mismos tercios de precio que el mapa: verde / ámbar / rojo
+  const corte1 = lista[Math.floor(lista.length / 3)]?.precio ?? 0;
+  const corte2 = lista[Math.floor((lista.length * 2) / 3)]?.precio ?? 0;
+  const tono = (p: number) => (p <= corte1 ? styles.verde : p <= corte2 ? styles.amarillo : styles.rojo);
+  const medallas = [styles.oro, styles.plata, styles.bronce];
+
   return (
     <>
       <form className={styles.buscador} onSubmit={buscar} role="search">
-        <input
-          type="search"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="Localidad o código postal"
-          aria-label="Localidad o código postal"
-          className={styles.caja}
-        />
-        <button type="submit" className={styles.boton}>Buscar</button>
+        <label className={styles.cajaIcono}>
+          <IconoBuscar tam={20} />
+          <input
+            type="search"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Ciudad o código postal"
+            aria-label="Ciudad o código postal"
+            className={styles.caja}
+            enterKeyHint="search"
+          />
+        </label>
         <button
           type="button"
           className={styles.botonSec}
@@ -277,7 +288,8 @@ export default function Explorador() {
           title="Cerca de mí"
           aria-label="Cerca de mí"
         >
-          📍<span className={styles.ocultarMovil}> Cerca de mí</span>
+          <IconoUbicacion tam={20} />
+          <span className={styles.ocultarMovil}>Cerca de mí</span>
         </button>
       </form>
       {avisoBusqueda && <p className={styles.error}>{avisoBusqueda}</p>}
@@ -299,11 +311,19 @@ export default function Explorador() {
       {error && <p className={styles.error}>{error}</p>}
 
       {masBarata && ahorro > 0 && (
-        <p className={styles.ahorro}>
-          En esta zona, la más barata es <strong>{masBarata.rotulo}</strong> en {masBarata.localidad} (
-          {euros(masBarata.precio)} €/l). Ahorras <strong>{euros(ahorro, 2)} €</strong> al repostar {LITROS} litros
-          frente a la más cara.
-        </p>
+        <section className={styles.hero} aria-label="Ahorro en esta zona">
+          <div>
+            <span className={styles.heroEtiqueta}>Ahorro en esta zona</span>
+            <strong className={styles.heroCifra}>{euros(ahorro, 2)} €</strong>
+            <span className={styles.heroTexto}>
+              llenando {LITROS} L en <b>{masBarata.rotulo}</b>, {nombrePropio(masBarata.localidad)} frente a la más cara
+            </span>
+          </div>
+          <div className={styles.heroPrecio}>
+            <b>{euros(masBarata.precio)}</b>
+            <small>€/litro</small>
+          </div>
+        </section>
       )}
 
       <div className={styles.rejilla}>
@@ -311,12 +331,14 @@ export default function Explorador() {
 
         <section className={styles.panel}>
           <h2 className={styles.subtitulo}>
-            {cargando ? "Cargando…" : `${lista.length}${recortado ? "+" : ""} gasolineras en el mapa`}
+            {cargando && lista.length === 0
+              ? "Buscando gasolineras…"
+              : `${lista.length}${recortado ? "+" : ""} gasolineras en el mapa`}
           </h2>
           {recortado && <p className={styles.zona}>Hay muchas en esta zona: acércate para verlas todas.</p>}
           {yo && (
             <div className={styles.orden} role="group" aria-label="Ordenar por">
-              Ordenar por:
+              Ordenar por
               {(["precio", "distancia"] as const).map((o) => (
                 <button
                   key={o}
@@ -330,31 +352,47 @@ export default function Explorador() {
               ))}
             </div>
           )}
-          <ol className={styles.lista}>
-            {ordenada.slice(0, 20).map((g, i) => (
-              <li
-                key={g.id}
-                className={styles.item}
-                onClick={() => mapaRef.current?.flyTo({ center: [g.lon, g.lat], zoom: 15 })}
-              >
-                <span className={styles.pos}>{i + 1}</span>
-                <span className="marca" style={{ background: distintivo(g.rotulo).color }}>
-                  {distintivo(g.rotulo).texto}
-                </span>
-                <div className={styles.info}>
-                  <strong>{g.rotulo}</strong>
-                  <span>{g.direccion}</span>
-                  <span className={styles.sub}>{g.localidad} · {g.horario}</span>
-                </div>
-                <span className={styles.derecha}>
-                  <span className={styles.precio}>{euros(g.precio)} €</span>
-                  {g.km !== null && <span className={styles.sub}>{formatoKm(g.km)}</span>}
-                </span>
-              </li>
-            ))}
-          </ol>
+
+          {cargando && lista.length === 0 ? (
+            <div className={styles.lista} aria-hidden>
+              {Array.from({ length: 6 }, (_, i) => <div key={i} className={styles.esqueleto} />)}
+            </div>
+          ) : (
+            <ol className={styles.lista}>
+              {ordenada.slice(0, 20).map((g, i) => (
+                <li
+                  key={g.id}
+                  className={styles.item}
+                  onClick={() => mapaRef.current?.flyTo({ center: [g.lon, g.lat], zoom: 15 })}
+                >
+                  {orden === "precio" && i < 3 ? (
+                    <span className={`${styles.medalla} ${medallas[i]}`} aria-label={`Puesto ${i + 1}`}>{i + 1}</span>
+                  ) : (
+                    <span className={styles.pos}>{i + 1}</span>
+                  )}
+                  <span className="marca" style={{ background: distintivo(g.rotulo).color }}>
+                    {distintivo(g.rotulo).texto}
+                  </span>
+                  <div className={styles.info}>
+                    <strong>{g.rotulo}</strong>
+                    <span className={styles.sub}>{nombrePropio(g.direccion)}</span>
+                    <span className={styles.sub}>{nombrePropio(g.localidad)} · {g.horario}</span>
+                  </div>
+                  <span className={styles.derecha}>
+                    <span className={`${styles.precio} ${tono(g.precio)}`}>{euros(g.precio)} €</span>
+                    {g.km !== null && (
+                      <span className={styles.distancia}><IconoPin tam={13} />{formatoKm(g.km)}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
           {!cargando && lista.length === 0 && !error && (
-            <p className={styles.zona}>No hay gasolineras con este carburante en la zona visible.</p>
+            <div className={styles.vacio}>
+              <IconoSurtidor tam={34} />
+              <p>No hay gasolineras con este carburante en la zona visible.<br />Prueba a alejar el mapa o a cambiar de carburante.</p>
+            </div>
           )}
         </section>
       </div>

@@ -12,9 +12,8 @@ export default async function MeVoy() {
 
   return (
     <main className={`${styles.main} ${styles.centrado}`}>
-      <div className={styles.proxIcono} aria-hidden>🚗</div>
-      <h1 className={styles.titulo}>¿Te vas? Deja tu plaza</h1>
-      <p className={styles.fecha}>Avisaremos a quien busca aparcamiento cerca. Sin registro.</p>
+      <h1 className={styles.titulo}>¿Te vas? Regala tu plaza</h1>
+      <p className={styles.zona}>Un toque y alguien que busca sitio cerca lo sabrá al momento.</p>
       <DejarPlaza url={url} clave={clave} />
     </main>
   );

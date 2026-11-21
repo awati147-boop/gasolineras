@@ -5,8 +5,10 @@ import styles from "./page.module.css";
 import Explorador from "./Explorador";
 
 const formatoFecha = new Intl.DateTimeFormat("es-ES", {
-  dateStyle: "short",
-  timeStyle: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
   timeZone: "Europe/Madrid",
 });
 
@@ -19,15 +21,15 @@ async function FechaDatos() {
     .order("fecha_api", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return <>{ultima ? `Datos del ${formatoFecha.format(new Date(ultima.fecha_api))}` : "Sin datos todavía"}</>;
+  return <>{ultima ? `Precios oficiales · ${formatoFecha.format(new Date(ultima.fecha_api))}` : "Sin datos todavía"}</>;
 }
 
 export default function Inicio() {
   return (
     <main className={styles.main}>
-      <h1 className={styles.titulo}>Gasolineras más baratas</h1>
+      <h1 className={styles.titulo}>Llena el depósito por menos</h1>
       <p className={styles.fecha}>
-        <Suspense fallback="Cargando fecha de los datos…">
+        <Suspense fallback="Cargando precios…">
           <FechaDatos />
         </Suspense>
       </p>

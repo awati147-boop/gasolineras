@@ -9,8 +9,8 @@ export default async function Aparcar() {
   await connection(); // leer las variables en cada petición (no al compilar)
   return (
     <main className={styles.main}>
-      <h1 className={styles.titulo}>Plazas libres cerca</h1>
-      <p className={styles.fecha}>Plazas que otros conductores acaban de dejar. Se borran a los 10 minutos.</p>
+      <h1 className={styles.titulo}>Aparca sin dar vueltas</h1>
+      <p className={styles.fecha}>Plazas que otros conductores acaban de dejar libres</p>
       <BuscarPlaza url={process.env.SUPABASE_URL ?? ""} clave={process.env.SUPABASE_PUBLISHABLE_KEY ?? ""} />
     </main>
   );

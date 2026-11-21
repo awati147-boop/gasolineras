@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Geist } from "next/font/google";
 import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
 import Pestanas from "./Pestanas";
+import { IconoInfo, Logo } from "./Iconos";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,8 +12,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: NOMBRE_APP,
-  description: "Las gasolineras más baratas cerca de ti, en un mapa. Precios oficiales del Ministerio.",
+  title: { default: NOMBRE_APP, template: `%s · ${NOMBRE_APP}` },
+  description: "Gasolineras más baratas, plazas libres y aparcamiento cerca de ti. Gratis y sin registro.",
   applicationName: NOMBRE_APP,
   appleWebApp: { capable: true, title: NOMBRE_CORTO, statusBarStyle: "default" },
 };
@@ -21,12 +22,22 @@ export const viewport: Viewport = {
   themeColor: COLOR_APP,
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={geistSans.variable}>
       <body>
+        <header className="cabecera">
+          <Link href="/" className="cabecera-marca">
+            <Logo />
+            <span>{NOMBRE_APP}</span>
+          </Link>
+          <Link href="/acerca" className="cabecera-info" aria-label="Acerca de, fuentes y privacidad">
+            <IconoInfo />
+          </Link>
+        </header>
         {children}
         <footer className="pie">
           <Link href="/acerca">Acerca de · Fuentes · Privacidad</Link>

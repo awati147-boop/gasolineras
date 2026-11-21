@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
 import styles from "../page.module.css";
+import { IconoInfo, IconoUbicacion } from "../Iconos";
 
 type Plaza = { id: number; lat: number; lon: number; creada: string; expira: string };
 
@@ -100,7 +101,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           source: "plazas",
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 16],
-            "circle-color": ["step", ["get", "minutos"], "#1a9850", 4, "#e6a700", 8, "#9ca3af"],
+            "circle-color": ["step", ["get", "minutos"], "#16a34a", 4, "#d98e04", 8, "#9ca3af"],
             "circle-stroke-width": 3,
             "circle-stroke-color": "#fff",
           },
@@ -134,7 +135,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           new maplibregl.Popup({ offset: 14, className: "ficha" })
             .setLngLat([lon, lat])
             .setHTML(
-              `<div class="ficha-cab"><span class="marca" style="background:#0a7d3b">P</span>` +
+              `<div class="ficha-cab"><span class="marca" style="background:var(--marca)">P</span>` +
                 `<div><strong>Plaza libre</strong><small>${min === 0 ? "Hace menos de 1 min" : `Hace ${min} min`}</small></div></div>` +
                 `<p>Puede que ya la haya ocupado alguien: cuanto más reciente, mejor.</p>` +
                 `<a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
@@ -168,27 +169,44 @@ export default function BuscarPlaza(config: ConfigSupabase) {
 
   return (
     <>
-      <div className={styles.barraPlazas}>
-        <button type="button" className={styles.boton} onClick={() => geolocalizar.current?.trigger()}>
-          📍 Cerca de mí
-        </button>
-        <span className={styles.zona}>
+      {error && <p className={styles.error}>{error}</p>}
+      <div className={styles.mapaMarco}>
+        <div ref={contenedor} className={styles.mapaGrande} />
+
+        <div className={`${styles.flotante} ${styles.flotanteArriba}`} aria-live="polite">
+          <span className={`${styles.punto} ${styles.puntoVivo}`} />
           {vigentes === 0
-            ? "Ahora mismo no hay plazas libres en esta zona."
-            : `${vigentes} ${vigentes === 1 ? "plaza libre" : "plazas libres"} en el mapa`}
-          {actualizado && ` · actualizado ${actualizado.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`}
+            ? "Sin plazas libres aquí ahora"
+            : `${vigentes} ${vigentes === 1 ? "plaza libre" : "plazas libres"}`}
+          {actualizado && (
+            <span className={styles.sub}>
+              · {actualizado.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+        </div>
+
+        <div className={`${styles.flotante} ${styles.flotanteAbajo}`}>
+          <span className={styles.punto} style={{ background: "#16a34a" }} /> &lt;4 min
+          <span className={styles.punto} style={{ background: "#d98e04" }} /> 4–8
+          <span className={styles.punto} style={{ background: "#9ca3af" }} /> caduca
+        </div>
+
+        <button
+          type="button"
+          className={`${styles.boton} ${styles.botonMapa}`}
+          onClick={() => geolocalizar.current?.trigger()}
+        >
+          <IconoUbicacion tam={18} /> Cerca de mí
+        </button>
+      </div>
+
+      <div className={`${styles.tarjeta} ${styles.proximo}`}>
+        <IconoInfo tam={18} />
+        <span>
+          Muy pronto también verás aquí <b>parkings públicos y de pago</b>, <b>zonas de parquímetro</b> y{" "}
+          <b>garajes de particulares</b> que se alquilan por horas o días.
         </span>
       </div>
-      {error && <p className={styles.error}>{error}</p>}
-      <div ref={contenedor} className={styles.mapaGrande} />
-      <p className={styles.leyenda}>
-        <span style={{ background: "#1a9850" }} /> Menos de 4 min
-        <span style={{ background: "#e6a700" }} /> 4–8 min
-        <span style={{ background: "#9ca3af" }} /> A punto de caducar
-      </p>
-      <p className={styles.zona}>
-        Próximamente aquí: parkings públicos y de pago, zonas de parquímetro (ORA) y garajes de particulares por horas o días.
-      </p>
     </>
   );
 }

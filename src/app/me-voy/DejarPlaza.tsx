@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { asegurarSesion, supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
 import styles from "../page.module.css";
+import { IconoCheck, IconoCoche, IconoPin, IconoReloj } from "../Iconos";
 
 type Punto = { lat: number; lon: number };
 type Plaza = { id: number; lat: number; lon: number; expira: string };
@@ -65,24 +66,38 @@ export default function DejarPlaza(config: ConfigSupabase) {
 
   return (
     <section className={styles.meVoy}>
+      <ol className={styles.pasos} aria-label="Pasos">
+        {["Ubicar", "Confirmar", "¡Listo!"].map((t, i) => {
+          const actual = estado.paso === "hecho" ? 2 : estado.paso === "confirmar" || estado.paso === "enviando" ? 1 : 0;
+          return (
+            <li key={t} className={i === actual ? styles.pasoActivo : undefined} aria-current={i === actual ? "step" : undefined}>
+              <b>{i < actual ? "✓" : i + 1}</b>
+              {t}
+            </li>
+          );
+        })}
+      </ol>
+
       {error && <p className={styles.error}>{error}</p>}
 
       {(estado.paso === "inicio" || estado.paso === "localizando") && (
         <>
-          <button className={styles.botonGrande} onClick={localizar} disabled={estado.paso === "localizando"}>
-            {estado.paso === "localizando" ? "Buscando tu ubicación…" : "🚗 Dejo mi plaza aquí"}
+          <button className={styles.botonCirculo} onClick={localizar} disabled={estado.paso === "localizando"}>
+            <IconoCoche tam={46} />
+            {estado.paso === "localizando" ? "Localizando…" : "Dejo mi plaza"}
+            <span>{estado.paso === "localizando" ? "un segundo" : "aquí y ahora"}</span>
           </button>
           <ul className={styles.notas}>
-            <li>Pulsa justo antes de salir con el coche.</li>
-            <li>Podrás ajustar el punto en el mapa antes de confirmar.</li>
-            <li>La plaza se muestra 10 minutos y después se borra. No guardamos quién la dejó.</li>
+            <li><IconoReloj tam={18} /> Púlsalo justo antes de arrancar el coche.</li>
+            <li><IconoPin tam={18} /> Podrás ajustar el punto en el mapa antes de confirmar.</li>
+            <li><IconoCheck tam={18} /> Sin registro. La plaza se borra a los 10 minutos y nadie sabe quién la dejó.</li>
           </ul>
         </>
       )}
 
       {(estado.paso === "confirmar" || estado.paso === "enviando") && (
         <>
-          <p>Comprueba que el punto está sobre tu plaza. Puedes <strong>arrastrarlo</strong> si hace falta.</p>
+          <p className={styles.zona}>¿Está el punto sobre tu plaza? Si no, <strong>arrástralo</strong>.</p>
           <MapaPunto
             punto={estado.punto}
             onMover={(p) => estado.paso === "confirmar" && setEstado({ paso: "confirmar", punto: p })}
@@ -100,11 +115,11 @@ export default function DejarPlaza(config: ConfigSupabase) {
 
       {estado.paso === "hecho" && (
         <div className={styles.hecho}>
-          <div className={styles.proxIcono} aria-hidden>✅</div>
-          <h2 className={styles.subtitulo}>¡Gracias! Plaza compartida</h2>
-          <p>
-            Los conductores cercanos la verán hasta las <strong>{hora(estado.plaza.expira)}</strong>.
-          </p>
+          <div className={styles.checkGrande} aria-hidden><IconoCheck tam={44} /></div>
+          <h2 className={styles.subtitulo}>¡Gracias! Acabas de ahorrarle vueltas a alguien</h2>
+          <span className={styles.caducidad}>
+            <IconoReloj tam={16} /> Visible hasta las {hora(estado.plaza.expira)}
+          </span>
           <MapaPunto punto={estado.plaza} />
           <button className={styles.botonSec} onClick={() => yaNoEstaLibre(estado.plaza)}>
             Ya no está libre / me he equivocado
@@ -139,7 +154,7 @@ function MapaPunto({ punto, onMover }: { punto: Punto; onMover?: (p: Punto) => v
         zoom: 18,
       });
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-      const mk = new maplibregl.Marker({ color: "#0a7d3b", draggable: arrastrable })
+      const mk = new maplibregl.Marker({ color: "#0a7d3b", draggable: arrastrable, scale: 1.3 })
         .setLngLat([punto.lon, punto.lat])
         .addTo(m);
       mk.on("dragend", () => {
