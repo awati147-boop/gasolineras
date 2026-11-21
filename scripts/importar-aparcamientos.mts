@@ -1,9 +1,10 @@
-// Descarga parkings y parquímetros de OpenStreetMap (Overpass API) y los guarda en Supabase.
+// Descarga parkings y parquímetros de OpenStreetMap (Overpass API) por provincias y los guarda en Supabase.
 // Uso:
-//   node --env-file=.env.local scripts/importar-aparcamientos.mts            (provincia de Alicante)
-//   node scripts/importar-aparcamientos.mts --dry-run                          (no escribe)
+//   npm run importar-aparcamientos                 (las 52 provincias, ~30-60 min)
+//   npm run importar-aparcamientos -- A V MU       (solo esas provincias, por código ISO sin "ES-")
+//   npm run importar-aparcamientos -- A --dry-run  (no escribe)
 // Datos © colaboradores de OpenStreetMap (ODbL).
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Servidores Overpass (si uno está saturado se prueba el siguiente)
 const OVERPASS = [
@@ -11,8 +12,19 @@ const OVERPASS = [
   "https://overpass.private.coffee/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
-// Provincia de Alicante (sur, oeste, norte, este). Ampliable a otras provincias más adelante.
-const ZONA = [37.84, -1.13, 38.96, 0.25];
+
+// Códigos ISO 3166-2 de las 50 provincias + Ceuta y Melilla
+const PROVINCIAS: Record<string, string> = {
+  C: "A Coruña", VI: "Álava", AB: "Albacete", A: "Alicante", AL: "Almería", O: "Asturias", AV: "Ávila",
+  BA: "Badajoz", PM: "Baleares", B: "Barcelona", BI: "Bizkaia", BU: "Burgos", CC: "Cáceres", CA: "Cádiz",
+  S: "Cantabria", CS: "Castellón", CR: "Ciudad Real", CO: "Córdoba", CU: "Cuenca", SS: "Gipuzkoa",
+  GI: "Girona", GR: "Granada", GU: "Guadalajara", H: "Huelva", HU: "Huesca", J: "Jaén", LO: "La Rioja",
+  GC: "Las Palmas", LE: "León", L: "Lleida", LU: "Lugo", M: "Madrid", MA: "Málaga", MU: "Murcia",
+  NA: "Navarra", OR: "Ourense", P: "Palencia", PO: "Pontevedra", SA: "Salamanca", TF: "Santa Cruz de Tenerife",
+  SG: "Segovia", SE: "Sevilla", SO: "Soria", T: "Tarragona", TE: "Teruel", TO: "Toledo", V: "Valencia",
+  VA: "Valladolid", ZA: "Zamora", Z: "Zaragoza", CE: "Ceuta", ML: "Melilla",
+};
+const PAUSA_ENTRE_PROVINCIAS_MS = 10_000; // ser amables con el servidor gratuito de OSM
 
 type Elemento = {
   type: "node" | "way" | "relation";
@@ -43,55 +55,41 @@ const TIPOS: Record<string, string> = {
   lane: "calle",
   on_street: "calle",
 };
+const NO_PUBLICO = ["private", "no", "permit", "employees", "delivery"];
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function descargar(consulta: string): Promise<Elemento[]> {
   for (const servidor of OVERPASS) {
     for (let intento = 1; intento <= 2; intento++) {
-      console.log(`Descargando de OpenStreetMap (${new URL(servidor).host}, intento ${intento})…`);
       try {
         const res = await fetch(servidor, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "aparcamientos-importador/1.0" },
           body: new URLSearchParams({ data: consulta }),
-          signal: AbortSignal.timeout(200_000),
+          signal: AbortSignal.timeout(300_000),
         });
         if (res.ok) return ((await res.json()) as { elements: Elemento[] }).elements;
-        console.log(`  respondió ${res.status}`);
+        console.log(`    ${new URL(servidor).host} respondió ${res.status} (intento ${intento})`);
       } catch (e) {
-        console.log(`  fallo: ${(e as Error).message}`);
+        console.log(`    ${new URL(servidor).host} falló: ${(e as Error).message} (intento ${intento})`);
       }
-      await new Promise((r) => setTimeout(r, 15_000));
+      await espera(20_000);
     }
   }
-  throw new Error("Ningún servidor de OpenStreetMap ha respondido. Se mantienen los datos anteriores.");
+  throw new Error("ningún servidor de OpenStreetMap ha respondido");
 }
 
-async function main() {
-  const dryRun = process.argv.includes("--dry-run");
-  const [s, w, n, e] = ZONA;
-  const consulta = `
-    [out:json][timeout:180];
-    (
-      nwr["amenity"="parking"](${s},${w},${n},${e});
-      node["vending"="parking_tickets"](${s},${w},${n},${e});
-    );
-    out center tags;`;
-
-  const elements = await descargar(consulta);
-
-  // Una sola marca de tiempo para toda la importación: lo que no la tenga al final ya no existe en OSM
-  const marca = new Date().toISOString();
+/** Convierte los elementos de OSM en filas para la tabla (descarta los privados) */
+function aFilas(elementos: Elemento[], marca: string) {
   const filas: Fila[] = [];
   let privados = 0;
-  for (const el of elements) {
+  for (const el of elementos) {
     const t = el.tags ?? {};
     const lat = el.lat ?? el.center?.lat;
     const lon = el.lon ?? el.center?.lon;
     if (lat == null || lon == null) continue;
-
     const esParquimetro = t.vending === "parking_tickets";
-    // Fuera los privados (garajes de comunidad, empresas…): no sirven al público
-    if (!esParquimetro && ["private", "no", "permit", "employees", "delivery"].includes(t.access ?? "")) {
+    if (!esParquimetro && NO_PUBLICO.includes(t.access ?? "")) {
       privados++;
       continue;
     }
@@ -99,7 +97,7 @@ async function main() {
       id: `osm:${el.type}/${el.id}`,
       clase: esParquimetro ? "parquimetro" : "parking",
       nombre: t.name ?? null,
-      tipo: esParquimetro ? null : (TIPOS[t.parking ?? ""] ?? (t.parking ? t.parking : null)),
+      tipo: esParquimetro ? null : (TIPOS[t.parking ?? ""] ?? t.parking ?? null),
       acceso: esParquimetro ? null : t.access === "customers" ? "clientes" : "publico",
       de_pago: esParquimetro ? true : t.fee === "yes" ? true : t.fee === "no" ? false : null,
       plazas: entero(t.capacity),
@@ -113,34 +111,83 @@ async function main() {
       actualizado: marca,
     });
   }
+  return { filas, privados };
+}
 
-  const cuenta = (f: (x: Fila) => boolean) => filas.filter(f).length;
-  console.log(`Elementos: ${elements.length} · guardables: ${filas.length} · privados descartados: ${privados}`);
-  console.log(`  parkings: ${cuenta((x) => x.clase === "parking")} (de pago: ${cuenta((x) => x.clase === "parking" && x.de_pago === true)}, gratis: ${cuenta((x) => x.de_pago === false)}, sin dato: ${cuenta((x) => x.clase === "parking" && x.de_pago === null)})`);
-  console.log(`  parquímetros: ${cuenta((x) => x.clase === "parquimetro")}`);
-  console.log(`  con nº de plazas: ${cuenta((x) => x.plazas !== null)} · con horario: ${cuenta((x) => x.horario !== null)} · con precio: ${cuenta((x) => x.precio !== null)}`);
-
-  if (dryRun) return console.log("\n--dry-run: no se ha escrito nada en Supabase.");
-
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
-  const db = createClient(url, key, { auth: { persistSession: false } });
-
-
+async function guardar(db: SupabaseClient, filas: Fila[]) {
   for (let i = 0; i < filas.length; i += 1000) {
     const { error } = await db.from("aparcamientos").upsert(filas.slice(i, i + 1000), { onConflict: "id" });
-    if (error) throw new Error(`aparcamientos: ${error.message}`);
+    if (error) throw new Error(`guardar: ${error.message}`);
   }
-  // Borrar los que ya no existen en OSM (solo de esta fuente; no toca los metidos a mano)
-  const { error, count } = await db
-    .from("aparcamientos")
-    .delete({ count: "exact" })
-    .eq("fuente", "osm")
-    .lt("actualizado", marca)
-    .gte("lat", s).lte("lat", n).gte("lon", w).lte("lon", e);
-  if (error) throw new Error(`limpieza: ${error.message}`);
-  console.log(`\nGuardado en Supabase ✔ (${count ?? 0} antiguos borrados)`);
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const dryRun = args.includes("--dry-run");
+  const pedidas = args.filter((a) => !a.startsWith("--")).map((a) => a.toUpperCase());
+  const desconocidas = pedidas.filter((c) => !PROVINCIAS[c]);
+  if (desconocidas.length) throw new Error(`Códigos de provincia desconocidos: ${desconocidas.join(", ")}`);
+  const codigos = pedidas.length ? pedidas : Object.keys(PROVINCIAS);
+  const todas = codigos.length === Object.keys(PROVINCIAS).length;
+
+  let db: SupabaseClient | null = null;
+  if (!dryRun) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new Error("Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
+    db = createClient(url, key, { auth: { persistSession: false } });
+  }
+
+  // Una sola marca de tiempo para toda la importación: lo que no la tenga al final ya no existe en OSM
+  const marca = new Date().toISOString();
+  const fallidas: string[] = [];
+  let total = 0;
+
+  for (const [i, codigo] of codigos.entries()) {
+    const nombre = PROVINCIAS[codigo];
+    const consulta = `
+      [out:json][timeout:280];
+      area["ISO3166-2"="ES-${codigo}"]->.p;
+      (
+        nwr["amenity"="parking"](area.p);
+        node["vending"="parking_tickets"](area.p);
+      );
+      out center tags;`;
+    try {
+      const elementos = await descargar(consulta);
+      const { filas, privados } = aFilas(elementos, marca);
+      if (db) await guardar(db, filas);
+      total += filas.length;
+      const parq = filas.filter((f) => f.clase === "parquimetro").length;
+      console.log(`[${i + 1}/${codigos.length}] ${nombre}: ${filas.length} guardables (${parq} parquímetros, ${privados} privados descartados)`);
+    } catch (e) {
+      fallidas.push(nombre);
+      console.log(`[${i + 1}/${codigos.length}] ${nombre}: ERROR ${(e as Error).message}`);
+    }
+    if (i < codigos.length - 1) await espera(PAUSA_ENTRE_PROVINCIAS_MS);
+  }
+
+  console.log(`\nTotal: ${total} aparcamientos en ${codigos.length - fallidas.length}/${codigos.length} provincias.`);
+  if (dryRun) return console.log("--dry-run: no se ha escrito nada en Supabase.");
+
+  // Limpieza de los que ya no están en OSM: solo si se han descargado TODAS las provincias sin fallos
+  if (todas && fallidas.length === 0 && db) {
+    const { error, count } = await db
+      .from("aparcamientos")
+      .delete({ count: "exact" })
+      .eq("fuente", "osm")
+      .lt("actualizado", marca);
+    if (error) throw new Error(`limpieza: ${error.message}`);
+    console.log(`Limpieza: ${count ?? 0} aparcamientos que ya no existen en OSM borrados.`);
+  } else {
+    console.log("Limpieza omitida (importación parcial o con fallos): se conservan los datos anteriores.");
+  }
+
+  if (fallidas.length) {
+    console.log(`Provincias con error: ${fallidas.join(", ")}`);
+    process.exit(1); // que GitHub avise por correo
+  }
+  console.log("Guardado en Supabase ✔");
 }
 
 main().catch((e) => {

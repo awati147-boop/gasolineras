@@ -14,7 +14,7 @@ concurrency:
 jobs:
   importar:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +22,7 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Importar parkings y parquímetros (provincia de Alicante)
+      - name: Importar parkings y parquímetros (toda España, por provincias)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
