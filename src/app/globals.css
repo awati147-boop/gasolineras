@@ -129,3 +129,4 @@ button { font: inherit; }
 .ficha-tarifas div { position: relative; padding-left: 16px; line-height: 1.35; }
 .ficha-tarifas span { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; }
 .ficha-tarifas small { color: var(--sub); }
+.cabecera-acciones { display: flex; gap: 2px; }

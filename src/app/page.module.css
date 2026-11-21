@@ -180,3 +180,26 @@
 .leyendaParking { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 2px 0; font-size: 0.8rem; color: var(--sub); }
 .leyendaParking span { display: inline-flex; align-items: center; gap: 6px; }
 .leyendaParking i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* ===== Cuenta ===== */
+.bloqueEntrar { max-width: 380px; margin: 18px auto 0; display: flex; flex-direction: column; gap: 12px; }
+.botonGoogle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+  padding: 13px 18px; border-radius: 14px; border: 1px solid var(--borde); background: var(--superficie);
+  color: var(--texto); font-weight: 700; font-size: 0.98rem; cursor: pointer; box-shadow: var(--sombra);
+}
+.botonGoogle:hover { background: var(--superficie-2); }
+.botonGoogle:disabled { opacity: 0.6; cursor: wait; }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--sub); font-size: 0.85rem; }
+.separador::before, .separador::after { content: ""; flex: 1; height: 1px; background: var(--borde); }
+.formEmail { display: flex; flex-direction: column; gap: 10px; }
+.formEmail .boton { width: 100%; }
+.enviado { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 14px; border-radius: var(--radio); background: var(--marca-suave); color: var(--texto); }
+.enviado svg { flex: none; color: var(--marca); margin-top: 2px; }
+.enviado p { margin: 0; line-height: 1.45; }
+.avatar {
+  width: 76px; height: 76px; margin: 4px auto 8px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; background: var(--marca); color: #fff; font-size: 2rem; font-weight: 800;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bloqueCuenta { padding: 16px; margin: 16px 0; text-align: left; }

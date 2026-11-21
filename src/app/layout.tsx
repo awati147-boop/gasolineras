@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Geist } from "next/font/google";
 import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
 import Pestanas from "./Pestanas";
-import { IconoInfo, Logo } from "./Iconos";
+import { IconoInfo, IconoPersona, Logo } from "./Iconos";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,9 +34,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Logo />
             <span>{NOMBRE_APP}</span>
           </Link>
+          <nav className="cabecera-acciones">
+          <Link href="/cuenta" className="cabecera-info" aria-label="Mi cuenta">
+            <IconoPersona />
+          </Link>
           <Link href="/acerca" className="cabecera-info" aria-label="Acerca de, fuentes y privacidad">
             <IconoInfo />
           </Link>
+          </nav>
         </header>
         {children}
         <footer className="pie">
