@@ -1,0 +1,18 @@
+{
+  // Configuración de Cloudflare Workers (desplegado con @opennextjs/cloudflare)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gasolineras",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Variables públicas. La clave publishable puede ser pública; aun así se configura
+  // como "secret" en Cloudflare para no depender de este archivo:
+  //   npx wrangler secret put SUPABASE_URL
+  //   npx wrangler secret put SUPABASE_PUBLISHABLE_KEY
+  // ¡Nunca subas aquí la Secret key (sb_secret_...)! La web no la necesita.
+  "observability": { "enabled": true }
+}

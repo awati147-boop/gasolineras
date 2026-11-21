@@ -15,6 +15,10 @@ create table if not exists gasolineras (
   actualizado timestamptz not null default now()
 );
 
+-- Texto para el buscador: "localidad municipio" en minúsculas y sin tildes (lo rellena el importador)
+alter table gasolineras add column if not exists busqueda text;
+create index if not exists gasolineras_cp on gasolineras (cp);
+
 -- Precio actual de cada carburante en cada gasolinera
 create table if not exists precios (
   gasolinera_id integer not null references gasolineras(id) on delete cascade,

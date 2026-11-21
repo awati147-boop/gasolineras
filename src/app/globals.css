@@ -10,3 +10,40 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--fondo); color: var(--texto); font-family: var(--font-geist-sans), system-ui, sans-serif; }
+
+/* Distintivo de marca (iniciales + color) */
+.marca {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px; color: #fff;
+  font-weight: 700; font-size: 0.8rem; letter-spacing: -0.02em;
+}
+
+/* Ficha al pulsar una gasolinera en el mapa */
+.ficha .maplibregl-popup-content {
+  background: var(--fondo); color: var(--texto);
+  border-radius: 12px; padding: 14px 16px 12px; min-width: 230px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); font-size: 0.9rem; line-height: 1.35;
+}
+.ficha.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.ficha.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.ficha.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--fondo); }
+.ficha.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.ficha.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.ficha.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--fondo); }
+.ficha.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--fondo); }
+.ficha.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--fondo); }
+.ficha .maplibregl-popup-close-button { color: var(--sub); font-size: 20px; padding: 2px 8px; }
+.ficha-cab { display: flex; gap: 10px; align-items: center; margin-right: 18px; }
+.ficha-cab strong { display: block; font-size: 1rem; }
+.ficha-cab small { color: var(--sub); }
+.ficha-precio { margin: 10px 0 6px; }
+.ficha-precio b { font-size: 1.6rem; color: var(--acento); }
+.ficha-precio span { color: var(--sub); margin-left: 4px; }
+.ficha p { margin: 4px 0; }
+.ficha-ir {
+  display: block; text-align: center; margin-top: 10px; padding: 9px;
+  border-radius: 10px; background: var(--acento); color: #fff; text-decoration: none; font-weight: 600;
+}
+
+.pie { text-align: center; padding: 24px 16px 32px; font-size: 0.85rem; }
+.pie a { color: var(--sub); }

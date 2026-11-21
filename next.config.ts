@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // cacheComponents / partialPrefetching desactivados: hacen que las páginas se cuelguen
+  // en Cloudflare Workers con @opennextjs/cloudflare.
 };
 
 export default nextConfig;

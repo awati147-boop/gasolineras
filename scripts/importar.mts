@@ -16,6 +16,11 @@ export function numero(valor: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** "JÁVEA/XÀBIA" -> "javea/xabia" (minúsculas, sin tildes) */
+export function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+
 /** "21/11/2026 1:28:12" (hora de Madrid) -> ISO con zona */
 export function fechaApi(texto: string): string {
   const [d, h] = texto.split(" ");
@@ -42,8 +47,13 @@ async function main() {
 
   const gasolineras = [];
   const precios = [];
+  const restringidas: number[] = []; // "Tipo Venta" R = solo socios/flotas: no se muestran
   for (const e of json.ListaEESSPrecio) {
     const id = Number(e["IDEESS"]);
+    if (e["Tipo Venta"] === "R") {
+      restringidas.push(id);
+      continue;
+    }
     gasolineras.push({
       id,
       rotulo: e["Rótulo"]?.trim(),
@@ -56,6 +66,7 @@ async function main() {
       horario: e["Horario"],
       lat: numero(e["Latitud"]),
       lon: numero(e["Longitud (WGS84)"]),
+      busqueda: normalizar(`${e["Localidad"] ?? ""} ${e["Municipio"] ?? ""}`),
       actualizado: fecha,
     });
     for (const [clave, valor] of Object.entries(e)) {
@@ -67,7 +78,7 @@ async function main() {
   }
 
   console.log(`Fecha de los datos: ${json.Fecha} (${fecha})`);
-  console.log(`Gasolineras: ${gasolineras.length} · Precios: ${precios.length}`);
+  console.log(`Gasolineras: ${gasolineras.length} · Precios: ${precios.length} · Restringidas (omitidas): ${restringidas.length}`);
   resumen(gasolineras, precios);
 
   if (dryRun) {
@@ -82,6 +93,11 @@ async function main() {
 
   await subirEnLotes(db, "gasolineras", gasolineras, "id");
   await subirEnLotes(db, "precios", precios, "gasolinera_id,carburante");
+  // Borrar las de venta restringida que se hubieran guardado antes (sus precios se borran en cascada)
+  for (let i = 0; i < restringidas.length; i += 200) {
+    const { error } = await db.from("gasolineras").delete().in("id", restringidas.slice(i, i + 200));
+    if (error) throw new Error(`borrar restringidas: ${error.message}`);
+  }
   const { error } = await db.from("importaciones").insert({
     fecha_api: fecha,
     provincia: provincia ?? "todas",

@@ -1,0 +1,37 @@
+# Descarga los precios del Ministerio y los guarda en Supabase cada 2 horas.
+# Necesita dos "secrets" en GitHub (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY
+name: Importar precios
+
+on:
+  schedule:
+    - cron: "15 */2 * * *" # cada 2 horas, en el minuto 15 (hora UTC)
+  workflow_dispatch: {} # botón "Run workflow" para lanzarlo a mano
+
+concurrency:
+  group: importar
+  cancel-in-progress: false
+
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Importar toda España (con 3 intentos si la API del Ministerio falla)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          for intento in 1 2 3; do
+            node scripts/importar.mts && exit 0
+            echo "Intento $intento fallido; reintento en 60 s"
+            sleep 60
+          done
+          echo "La API no responde: se mantiene el último dato guardado."
+          exit 1

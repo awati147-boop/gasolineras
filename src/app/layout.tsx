@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import Link from "next/link";
+import { Geist } from "next/font/google";
+import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -7,20 +9,28 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Gasolineras baratas",
-  description: "Las gasolineras más baratas cerca de ti",
+  title: NOMBRE_APP,
+  description: "Las gasolineras más baratas cerca de ti, en un mapa. Precios oficiales del Ministerio.",
+  applicationName: NOMBRE_APP,
+  appleWebApp: { capable: true, title: NOMBRE_CORTO, statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: COLOR_APP,
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+    <html lang="es" className={geistSans.variable}>
+      <body>
+        {children}
+        <footer className="pie">
+          <Link href="/acerca">Acerca de · Fuentes · Privacidad</Link>
+        </footer>
+      </body>
     </html>
   );
 }
