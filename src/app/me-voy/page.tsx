@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import Proximamente from "../Proximamente";
+import { connection } from "next/server";
+import styles from "../page.module.css";
+import DejarPlaza from "./DejarPlaza";
 
 export const metadata: Metadata = { title: "Me voy" };
 
-export default function MeVoy() {
+export default async function MeVoy() {
+  await connection(); // leer las variables en cada petición (no al compilar)
+  const url = process.env.SUPABASE_URL ?? "";
+  const clave = process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
+
   return (
-    <Proximamente
-      icono="🚗"
-      titulo="¿Te vas? Deja tu plaza"
-      puntos={[
-        "Pulsa un botón al salir y avisaremos a los conductores que buscan aparcamiento cerca.",
-        "Sin registro: no te pedimos nombre ni email.",
-        "Solo se guarda el punto de la plaza, y se borra a los 10 minutos.",
-      ]}
-    />
+    <main className={styles.main}>
+      <h1 className={styles.titulo}>¿Te vas? Deja tu plaza</h1>
+      <p className={styles.fecha}>Avisaremos a quien busca aparcamiento cerca. Sin registro.</p>
+      <DejarPlaza url={url} clave={clave} />
+    </main>
   );
 }

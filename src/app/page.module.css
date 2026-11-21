@@ -46,3 +46,14 @@
 .proximamente { text-align: center; padding-top: 24px; }
 .proximamente ul { text-align: left; display: inline-block; max-width: 480px; }
 .proxIcono { font-size: 3.5rem; }
+.meVoy { max-width: 560px; }
+.botonGrande {
+  width: 100%; font-size: 1.3rem; font-weight: 700; padding: 22px 16px; margin: 8px 0 12px;
+  border: 0; border-radius: 16px; background: var(--acento); color: #fff; cursor: pointer;
+}
+.botonGrande:disabled, .boton:disabled, .botonSec:disabled { opacity: 0.6; cursor: wait; }
+.notas { color: var(--sub); font-size: 0.9rem; line-height: 1.5; padding-left: 20px; }
+.mapaPequeno { width: 100%; height: 45vh; border-radius: 12px; overflow: hidden; margin: 8px 0 12px; }
+.acciones { display: flex; gap: 8px; justify-content: flex-end; }
+.hecho { text-align: center; }
+.hecho .botonSec { width: 100%; }

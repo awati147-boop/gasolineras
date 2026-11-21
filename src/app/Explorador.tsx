@@ -5,6 +5,7 @@ import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./page.module.css";
 import { distintivo } from "@/lib/marcas";
+import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 
 const CARBURANTES = [
   { id: "Gasolina 95 E5", nombre: "Gasolina 95" },
@@ -22,21 +23,6 @@ type Gasolinera = {
 const LITROS = 50;
 const ZONA_INICIAL: [number, number, number, number] = [-1.1, 37.85, 0.25, 38.95]; // provincia de Alicante
 const COLORES = { verde: "#1a9850", amarillo: "#e6a700", rojo: "#d73027" };
-
-const ESTILO = {
-  version: 8 as const,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  sources: {
-    osm: {
-      type: "raster" as const,
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  layers: [{ id: "osm", type: "raster" as const, source: "osm" }],
-};
 
 const euros = (p: number, dec = 3) => p.toFixed(dec).replace(".", ",");
 const escapar = (s: string) =>
@@ -134,9 +120,9 @@ export default function Explorador() {
     (async () => {
       const maplibregl = await import("maplibre-gl");
       if (cancelado || !contenedor.current) return;
-      maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs"); // lo copia "npm install" (postinstall)
+      maplibregl.setWorkerUrl(URL_WORKER_MAPA);
 
-      const m = new maplibregl.Map({ container: contenedor.current, style: ESTILO, bounds: ZONA_INICIAL });
+      const m = new maplibregl.Map({ container: contenedor.current, style: ESTILO_MAPA, bounds: ZONA_INICIAL });
       mapaRef.current = m;
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       m.addControl(new maplibregl.FullscreenControl(), "top-right");
