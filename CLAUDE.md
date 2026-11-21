@@ -19,8 +19,15 @@ Reglas:
 - Idioma de la interfaz: español.
 - No usar logos oficiales de marcas: distintivos con iniciales y color (`src/lib/marcas.ts`).
 
-Fases:
-1. Gasolineras (MVP, en curso).
-2. Parking: parkings públicos/de pago y zonas de parquímetro, en pestaña aparte.
-3. Dejar plaza y avisar: requiere cuentas y revisar la regla de datos personales (RGPD).
-Fuera del MVP: pagos, app nativa (si hace falta, envolver la PWA con Capacitor).
+Una sola app con pestañas que comparten el mapa: ⛽ Gasolina (`/`) · 🅿️ Aparcar (`/aparcar`) · 🚗 Me voy (`/me-voy`).
+
+Fases (en este orden, un paso cada vez):
+1. ⛽ Gasolineras: hecho y publicado.
+2. Navegación con pestañas.
+3. 🚗 Me voy: "dejo mi plaza aquí". Usuario anónimo de Supabase (sin email), la plaza caduca a los 10 min,
+   se guarda solo el punto de la plaza (nunca se sigue la ubicación del usuario).
+4. 🅿️ Aparcar: plazas libres en tiempo real (Supabase Realtime), avisos push, parkings públicos (OSM) y zonas ORA.
+   Lanzar primero solo en Alicante (hacen falta muchos usuarios en la misma zona).
+5. 🏠 Garajes, fase A: anuncios de alquiler por horas/días SIN pagos en la app (contacto directo). Requiere cuentas.
+6. 🏠 Garajes, fase B: reservas con pago (Stripe Connect, comisión). Requiere asesoría legal/fiscal (DAC7, RGPD).
+Fuera por ahora: pagos (hasta fase 6), app nativa (si hace falta ubicación en segundo plano, envolver la PWA con Capacitor).

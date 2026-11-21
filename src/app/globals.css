@@ -47,3 +47,19 @@ html, body { margin: 0; background: var(--fondo); color: var(--texto); font-fami
 
 .pie { text-align: center; padding: 24px 16px 32px; font-size: 0.85rem; }
 .pie a { color: var(--sub); }
+
+/* Barra de pestañas inferior */
+body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+.pestanas {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  display: flex; justify-content: space-around;
+  background: var(--fondo); border-top: 1px solid var(--borde);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+}
+.pestana {
+  flex: 1; max-width: 160px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 0; border-radius: 10px; text-decoration: none; color: var(--sub); font-size: 0.75rem; font-weight: 600;
+}
+.pestana-icono { font-size: 1.35rem; line-height: 1; filter: grayscale(1); opacity: 0.7; }
+.pestana.activa { color: var(--acento); background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.pestana.activa .pestana-icono { filter: none; opacity: 1; }

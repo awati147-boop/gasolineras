@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist } from "next/font/google";
 import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
+import Pestanas from "./Pestanas";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="pie">
           <Link href="/acerca">Acerca de · Fuentes · Privacidad</Link>
         </footer>
+        <Pestanas />
       </body>
     </html>
   );

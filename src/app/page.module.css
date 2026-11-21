@@ -43,3 +43,6 @@
 .texto { max-width: 720px; line-height: 1.55; }
 .texto a { color: var(--acento); }
 .texto li { margin-bottom: 8px; }
+.proximamente { text-align: center; padding-top: 24px; }
+.proximamente ul { text-align: left; display: inline-block; max-width: 480px; }
+.proxIcono { font-size: 3.5rem; }
