@@ -124,3 +124,8 @@ button { font: inherit; }
   border-radius: 12px; background: var(--marca); color: #fff; text-decoration: none; font-weight: 700;
 }
 .maplibregl-ctrl-group { border-radius: 12px !important; box-shadow: var(--sombra) !important; }
+.ficha-etiqueta { display: inline-block; margin-top: 3px; padding: 2px 8px; border-radius: 999px; color: #fff; font-size: 0.72rem; font-weight: 700; }
+.ficha-tarifas { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 6px; }
+.ficha-tarifas div { position: relative; padding-left: 16px; line-height: 1.35; }
+.ficha-tarifas span { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; }
+.ficha-tarifas small { color: var(--sub); }

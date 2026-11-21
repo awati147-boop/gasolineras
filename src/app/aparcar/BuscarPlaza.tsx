@@ -1,29 +1,120 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl } from "maplibre-gl";
+import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
+import { ORA_ALICANTE, enAlicante } from "@/lib/ora";
+import { nombrePropio } from "@/lib/texto";
 import styles from "../page.module.css";
 import { IconoInfo, IconoUbicacion } from "../Iconos";
 
 type Plaza = { id: number; lat: number; lon: number; creada: string; expira: string };
+type Aparcamiento = {
+  id: string; clase: "parking" | "parquimetro"; nombre: string | null; tipo: string | null; acceso: string | null;
+  de_pago: boolean | null; plazas: number | null; plazas_pmr: number | null; horario: string | null;
+  operador: string | null; precio: string | null; lat: number; lon: number;
+};
+type Filtro = "todo" | "libres" | "gratis" | "pago" | "ora";
 
-const ZONA_INICIAL: [number, number, number, number] = [-0.56, 38.32, -0.44, 38.39]; // Alicante ciudad
+const ZONA_INICIAL: [number, number, number, number] = [-0.515, 38.335, -0.47, 38.36]; // centro de Alicante
 const REFRESCO_MS = 15_000;
+const ZOOM_MINIMO_PARKINGS = 12;
+
+// Colores por categoría (mismos en mapa, filtros y leyenda)
+const COLOR = { libre: "#16a34a", gratis: "#0d9488", pago: "#2563eb", nd: "#64748b", ora: "#7c3aed" };
+
+const FILTROS: { id: Filtro; texto: string; color?: string }[] = [
+  { id: "todo", texto: "Todo" },
+  { id: "libres", texto: "Plazas libres", color: COLOR.libre },
+  { id: "gratis", texto: "Gratis", color: COLOR.gratis },
+  { id: "pago", texto: "De pago", color: COLOR.pago },
+  { id: "ora", texto: "Zona ORA", color: COLOR.ora },
+];
+
+const TIPO_TEXTO: Record<string, string> = {
+  superficie: "Al aire libre",
+  subterraneo: "Subterráneo",
+  varias_plantas: "Edificio de varias plantas",
+  azotea: "En azotea",
+  calle: "En la calle",
+};
 
 const minutosDesde = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
 const textoMinutos = (m: number) => (m === 0 ? "ahora" : `${m} min`);
+const escapar = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const categoria = (a: Aparcamiento) =>
+  a.clase === "parquimetro" ? "ora" : a.de_pago === true ? "pago" : a.de_pago === false ? "gratis" : "nd";
+const comoLlegar = (lat: number, lon: number) =>
+  `<a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`;
+
+/** Ficha HTML de un parking o parquímetro */
+function fichaAparcamiento(a: Aparcamiento) {
+  if (a.clase === "parquimetro") {
+    const tarifas = enAlicante(a.lon, a.lat)
+      ? `<div class="ficha-tarifas">${ORA_ALICANTE.tipos
+          .map(
+            (t) =>
+              `<div><span style="background:${t.color}"></span><b>${t.nombre}</b><br><small>${t.precio} · ${t.maximo}<br>${t.horario}</small></div>`,
+          )
+          .join("")}</div><p>${ORA_ALICANTE.avisos}</p>`
+      : `<p>Estacionamiento regulado. Consulta la tarifa y el horario en el propio parquímetro.</p>`;
+    return (
+      `<div class="ficha-cab"><span class="marca" style="background:${COLOR.ora}">€</span>` +
+      `<div><strong>Parquímetro</strong><small>Zona de estacionamiento regulado (ORA)</small></div></div>` +
+      tarifas +
+      comoLlegar(a.lat, a.lon)
+    );
+  }
+  const cat = categoria(a);
+  const etiqueta =
+    cat === "pago" ? `<span class="ficha-etiqueta" style="background:${COLOR.pago}">De pago</span>`
+    : cat === "gratis" ? `<span class="ficha-etiqueta" style="background:${COLOR.gratis}">Gratis</span>`
+    : `<span class="ficha-etiqueta" style="background:${COLOR.nd}">Precio sin confirmar</span>`;
+  const filas = [
+    a.tipo && TIPO_TEXTO[a.tipo] && `🅿️ ${TIPO_TEXTO[a.tipo]}`,
+    a.plazas && `🚗 ${a.plazas} plazas${a.plazas_pmr ? ` · ♿ ${a.plazas_pmr}` : ""}`,
+    a.horario && `🕒 ${escapar(a.horario.replace("24/7", "Abierto 24 h"))}`,
+    a.precio && `💶 ${escapar(a.precio)}`,
+    a.operador && `🏢 ${escapar(a.operador)}`,
+    a.acceso === "clientes" && "🛒 Solo para clientes del establecimiento",
+  ].filter(Boolean);
+  return (
+    `<div class="ficha-cab"><span class="marca" style="background:${COLOR[cat]}">P</span>` +
+    `<div><strong>${escapar(a.nombre ? nombrePropio(a.nombre) : "Aparcamiento")}</strong>${etiqueta}</div></div>` +
+    (filas.length ? filas.map((f) => `<p>${f}</p>`).join("") : `<p>Aún no tenemos más datos de este aparcamiento.</p>`) +
+    comoLlegar(a.lat, a.lon)
+  );
+}
 
 export default function BuscarPlaza(config: ConfigSupabase) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaML | null>(null);
   const plazasRef = useRef<Plaza[]>([]);
+  const aparcRef = useRef<Map<string, Aparcamiento>>(new Map());
   const geolocalizar = useRef<GeolocateControl | null>(null);
+  const [filtro, setFiltro] = useState<Filtro>("todo");
+  const filtroRef = useRef<Filtro>("todo");
   const [vigentes, setVigentes] = useState(0);
+  const [conteo, setConteo] = useState({ gratis: 0, pago: 0, nd: 0, ora: 0 });
+  const [lejos, setLejos] = useState(false);
   const [actualizado, setActualizado] = useState<Date | null>(null);
   const [error, setError] = useState("");
+
+  /** Muestra u oculta capas según el filtro elegido */
+  const aplicarFiltro = useCallback((f: Filtro) => {
+    const m = mapaRef.current;
+    if (!m?.getLayer("aparc-circulo")) return;
+    const verPlazas = f === "todo" || f === "libres";
+    for (const capa of ["plazas-circulo", "plazas-letra", "plazas-minutos"]) {
+      m.setLayoutProperty(capa, "visibility", verPlazas ? "visible" : "none");
+    }
+    const filtroAparc: FilterSpecification | null =
+      f === "todo" ? null : f === "libres" ? ["==", ["get", "cat"], "__ninguno__"] : ["==", ["get", "cat"], f];
+    for (const capa of ["aparc-circulo", "aparc-letra"]) m.setFilter(capa, filtroAparc);
+  }, []);
 
   /** Repinta las plazas (los minutos cambian aunque no haya datos nuevos) */
   const pintar = useCallback(() => {
@@ -33,46 +124,76 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     setVigentes(activas.length);
     fuente?.setData({
       type: "FeatureCollection",
-      features: activas
-        .map((p) => {
-          const min = minutosDesde(p.creada);
-          return {
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [p.lon, p.lat] },
-            properties: { id: p.id, minutos: min, etiqueta: textoMinutos(min) },
-          };
-        }),
+      features: activas.map((p) => {
+        const min = minutosDesde(p.creada);
+        return {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [p.lon, p.lat] },
+          properties: { id: p.id, minutos: min, etiqueta: textoMinutos(min) },
+        };
+      }),
     });
   }, []);
 
-  /** Pide a Supabase las plazas vigentes de la zona visible */
-  const cargar = useCallback(async () => {
+  /** Plazas libres de la zona visible (cada 15 s) */
+  const cargarPlazas = useCallback(async () => {
     const m = mapaRef.current;
     if (!m || document.hidden) return;
     const b = m.getBounds();
     const { data, error } = await supabaseNavegador(config)
       .from("plazas")
       .select("id, lat, lon, creada, expira")
-      .gte("lat", b.getSouth())
-      .lte("lat", b.getNorth())
-      .gte("lon", b.getWest())
-      .lte("lon", b.getEast())
+      .gte("lat", b.getSouth()).lte("lat", b.getNorth())
+      .gte("lon", b.getWest()).lte("lon", b.getEast())
       .order("creada", { ascending: false })
       .limit(500);
     if (error) return setError("No se han podido cargar las plazas. Lo reintentamos en unos segundos.");
     setError("");
     plazasRef.current = data;
-
     setActualizado(new Date());
     pintar();
   }, [config, pintar]);
 
+  /** Parkings y parquímetros de la zona visible (al mover el mapa) */
+  const cargarAparcamientos = useCallback(async () => {
+    const m = mapaRef.current;
+    if (!m) return;
+    const fuente = m.getSource("aparcamientos") as GeoJSONSource | undefined;
+    if (m.getZoom() < ZOOM_MINIMO_PARKINGS) {
+      setLejos(true);
+      setConteo({ gratis: 0, pago: 0, nd: 0, ora: 0 });
+      return fuente?.setData({ type: "FeatureCollection", features: [] });
+    }
+    setLejos(false);
+    const b = m.getBounds();
+    const { data, error } = await supabaseNavegador(config)
+      .from("aparcamientos")
+      .select("id, clase, nombre, tipo, acceso, de_pago, plazas, plazas_pmr, horario, operador, precio, lat, lon")
+      .gte("lat", b.getSouth()).lte("lat", b.getNorth())
+      .gte("lon", b.getWest()).lte("lon", b.getEast())
+      .limit(3000);
+    if (error) return setError("No se han podido cargar los aparcamientos.");
+    const lista = data as Aparcamiento[];
+    aparcRef.current = new Map(lista.map((a) => [a.id, a]));
+    const c = { gratis: 0, pago: 0, nd: 0, ora: 0 };
+    lista.forEach((a) => c[categoria(a)]++);
+    setConteo(c);
+    fuente?.setData({
+      type: "FeatureCollection",
+      features: lista.map((a) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [a.lon, a.lat] },
+        properties: { id: a.id, cat: categoria(a), letra: a.clase === "parquimetro" ? "€" : "P" },
+      })),
+    });
+  }, [config]);
+
   useEffect(() => {
     let cancelado = false;
     let espera: ReturnType<typeof setTimeout>;
-    const intervalo = setInterval(cargar, REFRESCO_MS);
+    const intervalo = setInterval(cargarPlazas, REFRESCO_MS);
     const repintar = setInterval(pintar, 30_000);
-    const alVolver = () => !document.hidden && cargar();
+    const alVolver = () => !document.hidden && cargarPlazas();
     document.addEventListener("visibilitychange", alVolver);
 
     (async () => {
@@ -93,15 +214,38 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       m.addControl(geo, "top-right");
 
       m.on("load", () => {
+        // --- Parkings y parquímetros (debajo) ---
+        m.addSource("aparcamientos", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        m.addLayer({
+          id: "aparc-circulo",
+          type: "circle",
+          source: "aparcamientos",
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 5, 15, 9, 18, 12],
+            "circle-color": ["match", ["get", "cat"], "gratis", COLOR.gratis, "pago", COLOR.pago, "ora", COLOR.ora, COLOR.nd],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+            "circle-opacity": ["match", ["get", "cat"], "nd", 0.75, 1],
+          },
+        });
+        m.addLayer({
+          id: "aparc-letra",
+          type: "symbol",
+          source: "aparcamientos",
+          minzoom: 14,
+          layout: { "text-field": ["get", "letra"], "text-font": ["Open Sans Semibold"], "text-size": 11, "text-allow-overlap": true },
+          paint: { "text-color": "#fff" },
+        });
+
+        // --- Plazas libres (encima, más grandes) ---
         m.addSource("plazas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-        // Círculo: verde si es reciente, naranja a mitad, gris cuando está a punto de caducar
         m.addLayer({
           id: "plazas-circulo",
           type: "circle",
           source: "plazas",
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 16],
-            "circle-color": ["step", ["get", "minutos"], "#16a34a", 4, "#d98e04", 8, "#9ca3af"],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 17],
+            "circle-color": ["step", ["get", "minutos"], COLOR.libre, 4, "#d98e04", 8, "#9ca3af"],
             "circle-stroke-width": 3,
             "circle-stroke-color": "#fff",
           },
@@ -121,13 +265,13 @@ export default function BuscarPlaza(config: ConfigSupabase) {
             "text-field": ["get", "etiqueta"],
             "text-font": ["Open Sans Semibold"],
             "text-size": 12,
-            "text-offset": [0, 1.8],
+            "text-offset": [0, 1.9],
             "text-allow-overlap": true,
           },
           paint: { "text-color": "#1a1a1a", "text-halo-color": "#fff", "text-halo-width": 1.5 },
         });
 
-        const abrir = (e: MapLayerMouseEvent) => {
+        const abrirPlaza = (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
           const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
@@ -135,23 +279,44 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           new maplibregl.Popup({ offset: 14, className: "ficha" })
             .setLngLat([lon, lat])
             .setHTML(
-              `<div class="ficha-cab"><span class="marca" style="background:var(--marca)">P</span>` +
+              `<div class="ficha-cab"><span class="marca" style="background:${COLOR.libre}">P</span>` +
                 `<div><strong>Plaza libre</strong><small>${min === 0 ? "Hace menos de 1 min" : `Hace ${min} min`}</small></div></div>` +
                 `<p>Puede que ya la haya ocupado alguien: cuanto más reciente, mejor.</p>` +
-                `<a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
+                comoLlegar(lat, lon),
             )
             .addTo(m);
         };
-        for (const capa of ["plazas-circulo", "plazas-letra"]) {
-          m.on("click", capa, abrir);
-          m.on("mouseenter", capa, () => (m.getCanvas().style.cursor = "pointer"));
-          m.on("mouseleave", capa, () => (m.getCanvas().style.cursor = ""));
+        const abrirAparcamiento = (e: MapLayerMouseEvent) => {
+          // Si en el mismo punto hay una plaza libre, manda la plaza
+          if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
+          const a = aparcRef.current.get(String(e.features?.[0]?.properties.id));
+          if (!a) return;
+          new maplibregl.Popup({ offset: 10, className: "ficha", maxWidth: "310px" })
+            .setLngLat([a.lon, a.lat])
+            .setHTML(fichaAparcamiento(a))
+            .addTo(m);
+        };
+        for (const [capas, accion] of [
+          [["plazas-circulo", "plazas-letra"], abrirPlaza],
+          [["aparc-circulo", "aparc-letra"], abrirAparcamiento],
+        ] as const) {
+          for (const capa of capas) {
+            m.on("click", capa, accion);
+            m.on("mouseenter", capa, () => (m.getCanvas().style.cursor = "pointer"));
+            m.on("mouseleave", capa, () => (m.getCanvas().style.cursor = ""));
+          }
         }
-        cargar();
+
+        aplicarFiltro(filtroRef.current);
+        cargarPlazas();
+        cargarAparcamientos();
       });
       m.on("moveend", () => {
         clearTimeout(espera);
-        espera = setTimeout(cargar, 300);
+        espera = setTimeout(() => {
+          cargarPlazas();
+          cargarAparcamientos();
+        }, 300);
       });
     })();
 
@@ -164,31 +329,53 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       mapaRef.current?.remove();
       mapaRef.current = null;
     };
-  }, [cargar, pintar]);
+  }, [cargarPlazas, cargarAparcamientos, pintar, aplicarFiltro]);
 
+  function elegir(f: Filtro) {
+    setFiltro(f);
+    filtroRef.current = f;
+    aplicarFiltro(f);
+  }
+
+  // Texto del contador flotante según el filtro
+  const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+  const resumen =
+    filtro === "libres" ? (vigentes ? plural(vigentes, "plaza libre", "plazas libres") : "Sin plazas libres aquí ahora")
+    : lejos ? "Acércate para ver parkings"
+    : filtro === "gratis" ? plural(conteo.gratis, "parking gratis", "parkings gratis")
+    : filtro === "pago" ? plural(conteo.pago, "parking de pago", "parkings de pago")
+    : filtro === "ora" ? plural(conteo.ora, "parquímetro", "parquímetros")
+    : `${plural(vigentes, "plaza libre", "plazas libres")} · ${conteo.gratis + conteo.pago + conteo.nd} parkings`;
 
   return (
     <>
+      <nav className={styles.chips} aria-label="Qué mostrar">
+        {FILTROS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => elegir(f.id)}
+            className={filtro === f.id ? styles.chipActivo : styles.chip}
+            aria-pressed={filtro === f.id}
+          >
+            {f.color && <span className={styles.punto} style={{ background: f.color, marginRight: 6 }} />}
+            {f.texto}
+          </button>
+        ))}
+      </nav>
+
       {error && <p className={styles.error}>{error}</p>}
       <div className={styles.mapaMarco}>
         <div ref={contenedor} className={styles.mapaGrande} />
 
         <div className={`${styles.flotante} ${styles.flotanteArriba}`} aria-live="polite">
           <span className={`${styles.punto} ${styles.puntoVivo}`} />
-          {vigentes === 0
-            ? "Sin plazas libres aquí ahora"
-            : `${vigentes} ${vigentes === 1 ? "plaza libre" : "plazas libres"}`}
+          {resumen}
           {actualizado && (
             <span className={styles.sub}>
               · {actualizado.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
-        </div>
-
-        <div className={`${styles.flotante} ${styles.flotanteAbajo}`}>
-          <span className={styles.punto} style={{ background: "#16a34a" }} /> &lt;4 min
-          <span className={styles.punto} style={{ background: "#d98e04" }} /> 4–8
-          <span className={styles.punto} style={{ background: "#9ca3af" }} /> caduca
         </div>
 
         <button
@@ -200,11 +387,19 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         </button>
       </div>
 
+      <div className={styles.leyendaParking}>
+        <span><i style={{ background: COLOR.libre }} />Plaza libre (usuarios)</span>
+        <span><i style={{ background: COLOR.gratis }} />Parking gratis</span>
+        <span><i style={{ background: COLOR.pago }} />Parking de pago</span>
+        <span><i style={{ background: COLOR.nd }} />Parking sin dato de precio</span>
+        <span><i style={{ background: COLOR.ora }} />Parquímetro (ORA)</span>
+      </div>
+
       <div className={`${styles.tarjeta} ${styles.proximo}`}>
         <IconoInfo tam={18} />
         <span>
-          Muy pronto también verás aquí <b>parkings públicos y de pago</b>, <b>zonas de parquímetro</b> y{" "}
-          <b>garajes de particulares</b> que se alquilan por horas o días.
+          Parkings y parquímetros: © colaboradores de OpenStreetMap. Muy pronto: <b>precios de los parkings</b>,{" "}
+          <b>calles de zona azul y naranja</b> y <b>garajes de particulares</b> por horas o días.
         </span>
       </div>
     </>

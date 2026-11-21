@@ -116,7 +116,7 @@
 
 /* ===== Aparcar ===== */
 .mapaMarco { position: relative; }
-.mapaGrande { height: calc(100vh - 250px); min-height: 420px; }
+.mapaGrande { height: calc(100dvh - 340px); min-height: 380px; }
 .flotante {
   position: absolute; z-index: 2; left: 12px; display: flex; align-items: center; gap: 8px;
   background: var(--superficie); border: 1px solid var(--borde); border-radius: 999px; box-shadow: var(--sombra-fuerte);
@@ -177,3 +177,6 @@
 /* ===== Páginas de texto ===== */
 .texto { max-width: 720px; line-height: 1.6; }
 .texto li { margin-bottom: 8px; }
+.leyendaParking { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 2px 0; font-size: 0.8rem; color: var(--sub); }
+.leyendaParking span { display: inline-flex; align-items: center; gap: 6px; }
+.leyendaParking i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
