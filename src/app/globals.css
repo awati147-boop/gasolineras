@@ -1,0 +1,12 @@
+:root {
+  --fondo: #ffffff;
+  --texto: #1a1a1a;
+  --sub: #666;
+  --borde: #e5e5e5;
+  --acento: #0a7d3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fondo: #121212; --texto: #eee; --sub: #9a9a9a; --borde: #2a2a2a; --acento: #2fbf6b; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--fondo); color: var(--texto); font-family: var(--font-geist-sans), system-ui, sans-serif; }
