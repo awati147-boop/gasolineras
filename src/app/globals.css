@@ -160,3 +160,21 @@ button { font: inherit; }
 .aviso-pasos svg { color: #0a84ff; }
 .ficha-foto { display: block; width: calc(100% + 32px); margin: -16px -16px 12px; height: 140px; object-fit: cover; border-radius: var(--radio) var(--radio) 0 0; }
 button.ficha-ir { width: 100%; border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+
+/* Fichas del mapa más compactas en móvil */
+.ficha-desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 520px) {
+  .ficha .maplibregl-popup-content {
+    max-height: 55vh; overflow-y: auto; overscroll-behavior: contain;
+    padding: 12px 12px 10px; min-width: 0; font-size: 0.84rem; line-height: 1.35;
+  }
+  .ficha-foto { width: calc(100% + 24px); margin: -12px -12px 10px; height: 96px; }
+  .ficha .marca { width: 32px; height: 32px; border-radius: 9px; font-size: 0.75rem; }
+  .ficha-cab { gap: 9px; }
+  .ficha-cab strong { font-size: 0.95rem; }
+  .ficha-precio { margin: 8px 0 4px; }
+  .ficha-precio b { font-size: 1.3rem; }
+  .ficha p { margin: 2px 0; }
+  .ficha-ir { margin-top: 8px; padding: 9px; }
+  .ficha-tarifas { gap: 6px; margin: 8px 0 4px; }
+}

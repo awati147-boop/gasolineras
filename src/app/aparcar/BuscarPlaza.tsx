@@ -104,7 +104,7 @@ function fichaGaraje(g: Garaje, supabaseUrl: string) {
     `<div class="ficha-cab"><span class="marca" style="background:${COLOR.garaje}">🏠</span>` +
     `<div><strong>${escapar(g.titulo)}</strong><small>${g.tipo === "cerrado" ? "Garaje cerrado" : "Plaza en garaje"} · de particular</small></div></div>` +
     `<div class="ficha-precio"><b>${escapar(textoPrecio(g))}</b></div>` +
-    (g.descripcion ? `<p>${escapar(g.descripcion)}</p>` : "") +
+    (g.descripcion ? `<p class="ficha-desc">${escapar(g.descripcion)}</p>` : "") +
     datos.map((d) => `<p>${d}</p>`).join("") +
     `<p><small>📍 Ubicación aproximada: la dirección exacta se comparte al aceptar la reserva.</small></p>` +
     `<button class="ficha-ir" type="button" data-solicitar="${g.id}">Solicitar reserva</button>`
@@ -382,7 +382,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
           const a = aparcRef.current.get(String(e.features?.[0]?.properties.id));
           if (!a) return;
-          new maplibregl.Popup({ offset: 10, className: "ficha", maxWidth: "310px" })
+          new maplibregl.Popup({ offset: 10, className: "ficha", maxWidth: "min(300px, 82vw)" })
             .setLngLat([a.lon, a.lat])
             .setHTML(fichaAparcamiento(a))
             .addTo(m);
@@ -391,7 +391,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
           const g = garajesRef.current.get(String(e.features?.[0]?.properties.id));
           if (!g) return;
-          const popup = new maplibregl.Popup({ offset: 12, className: "ficha", maxWidth: "310px" })
+          const popup = new maplibregl.Popup({ offset: 12, className: "ficha", maxWidth: "min(300px, 82vw)" })
             .setLngLat([g.lon_aprox, g.lat_aprox])
             .setHTML(fichaGaraje(g, config.url))
             .addTo(m);
