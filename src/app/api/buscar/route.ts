@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabasePublico } from "@/lib/supabase";
 import { normalizar } from "@/lib/texto";
 
+/** "VALENCIA/VALÈNCIA" -> ["valencia/valencia", "valencia", "valencia"]: el nombre completo y cada variante */
+const variantes = (nombre: string | null) => {
+  if (!nombre) return [];
+  const n = normalizar(nombre);
+  return [n, ...n.split("/").map((p) => p.trim())];
+};
+
 // GET /api/buscar?q=javea  ->  { zona: [oeste, sur, este, norte] } con las gasolineras que coinciden
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 60);
   if (!q) return NextResponse.json({ zona: null });
 
-  let consulta = supabasePublico().from("gasolineras").select("lat, lon, busqueda").not("lat", "is", null);
+  let consulta = supabasePublico()
+    .from("gasolineras")
+    .select("lat, lon, localidad, municipio")
+    .not("lat", "is", null);
   if (/^\d{2,5}$/.test(q)) {
     consulta = consulta.like("cp", `${q}%`);
   } else {
@@ -17,9 +27,12 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Error al buscar" }, { status: 502 });
   if (!data?.length) return NextResponse.json({ zona: null });
 
-  // Si hay coincidencias exactas de localidad (p.ej. "madrid" y no "humanes de madrid"), usar solo esas
-  const exacto = normalizar(q);
-  const exactas = data.filter((g) => g.busqueda?.split(/[ /]/).includes(exacto) && g.busqueda.startsWith(exacto));
+  // Prioridad a la localidad o municipio que se llama EXACTAMENTE así
+  // ("valencia" -> Valencia ciudad, no Valencia de Don Juan ni Valencia de Alcántara)
+  const buscado = normalizar(q);
+  const exactas = data.filter(
+    (g) => variantes(g.localidad).includes(buscado) || variantes(g.municipio).includes(buscado),
+  );
   const puntos = exactas.length ? exactas : data;
 
   const lons = puntos.map((g) => g.lon as number);
