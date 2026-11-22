@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
@@ -134,6 +135,29 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   const [lejos, setLejos] = useState(false);
   const [actualizado, setActualizado] = useState<Date | null>(null);
   const [error, setError] = useState("");
+  // Ficha abierta en la hoja inferior (HTML ya escapado) y aviso dentro de ella
+  const [hoja, setHoja] = useState<string | null>(null);
+  const [aviso, setAviso] = useState("");
+
+  /** Clics dentro de la ficha: botón "Solicitar reserva" */
+  async function alPulsarFicha(e: React.MouseEvent<HTMLDivElement>) {
+    const boton = (e.target as HTMLElement).closest("[data-solicitar]");
+    if (!boton) return;
+    const { data } = await supabaseNavegador(config).auth.getUser();
+    if (!data.user || data.user.is_anonymous) {
+      setAviso("cuenta");
+    } else {
+      setAviso("pronto");
+    }
+  }
+
+  /** Contador "2/4" del carrusel de fotos al deslizar */
+  function alDeslizar(e: React.UIEvent<HTMLDivElement>) {
+    const tira = e.target as HTMLElement;
+    if (!tira.classList?.contains("ficha-fotos")) return;
+    const cont = tira.parentElement?.querySelector(".ficha-contador");
+    if (cont) cont.textContent = `${Math.round(tira.scrollLeft / tira.clientWidth) + 1}/${tira.children.length}`;
+  }
 
   /** Muestra u oculta capas según el filtro elegido */
   const aplicarFiltro = useCallback((f: Filtro) => {
@@ -375,44 +399,39 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           if (!f) return;
           const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
           const min = Number(f.properties.minutos);
-          new maplibregl.Popup({ offset: 14, className: "ficha" })
-            .setLngLat([lon, lat])
-            .setHTML(
-              `<div class="ficha-cab"><span class="marca" style="background:${COLOR.libre}">P</span>` +
-                `<div><strong>Plaza libre</strong><small>${min === 0 ? "Hace menos de 1 min" : `Hace ${min} min`}</small></div></div>` +
-                `<p>Puede que ya la haya ocupado alguien: cuanto más reciente, mejor.</p>` +
-                comoLlegar(lat, lon),
-            )
-            .addTo(m);
+          abrirHoja(
+            `<div class="ficha-cab"><span class="marca" style="background:${COLOR.libre}">P</span>` +
+              `<div><strong>Plaza libre</strong><small>${min === 0 ? "Hace menos de 1 min" : `Hace ${min} min`}</small></div></div>` +
+              `<p>Puede que ya la haya ocupado alguien: cuanto más reciente, mejor.</p>` +
+              comoLlegar(lat, lon),
+            [lon, lat],
+          );
         };
         const abrirAparcamiento = (e: MapLayerMouseEvent) => {
           // Si en el mismo punto hay una plaza libre, manda la plaza
           if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
           const a = aparcRef.current.get(String(e.features?.[0]?.properties.id));
           if (!a) return;
-          new maplibregl.Popup({ offset: 10, className: "ficha", maxWidth: "min(300px, 82vw)" })
-            .setLngLat([a.lon, a.lat])
-            .setHTML(fichaAparcamiento(a))
-            .addTo(m);
+          abrirHoja(fichaAparcamiento(a), [a.lon, a.lat]);
         };
         const abrirGaraje = (e: MapLayerMouseEvent) => {
           if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
           const g = garajesRef.current.get(String(e.features?.[0]?.properties.id));
           if (!g) return;
-          const popup = new maplibregl.Popup({ offset: 12, className: "ficha", maxWidth: "min(300px, 82vw)" })
-            .setLngLat([g.lon_aprox, g.lat_aprox])
-            .setHTML(fichaGaraje(g, config.url))
-            .addTo(m);
-          const tira = popup.getElement().querySelector<HTMLElement>(".ficha-fotos");
-          const cont = popup.getElement().querySelector<HTMLElement>(".ficha-contador");
-          tira?.addEventListener("scroll", () => {
-            const i = Math.round(tira.scrollLeft / tira.clientWidth) + 1;
-            if (cont) cont.textContent = `${i}/${tira.children.length}`;
-          });
-          popup.getElement().querySelector("[data-solicitar]")?.addEventListener("click", () => {
-            alert("Muy pronto podrás solicitar la reserva desde aquí.");
-          });
+          abrirHoja(fichaGaraje(g, config.url), [g.lon_aprox, g.lat_aprox]);
         };
+        /** Muestra la ficha en la hoja inferior y centra el punto en la parte de arriba del mapa */
+        const abrirHoja = (html: string, centro: [number, number]) => {
+          setAviso("");
+          setHoja(html);
+          const alto = m.getContainer().clientHeight;
+          m.easeTo({ center: centro, offset: [0, -alto * 0.22], duration: 400 });
+        };
+        m.on("click", (e) => {
+          // Tocar el mapa fuera de un punto cierra la hoja
+          const capas = ["plazas-circulo", "aparc-circulo", "garajes-punto"].filter((c) => m.getLayer(c));
+          if (!m.queryRenderedFeatures(e.point, { layers: capas }).length) setHoja(null);
+        });
         for (const [capas, accion] of [
           [["plazas-circulo", "plazas-letra"], abrirPlaza],
           [["aparc-circulo", "aparc-letra"], abrirAparcamiento],
@@ -507,6 +526,24 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           <IconoUbicacion tam={18} /> Cerca de mí
         </button>
       </div>
+
+      {hoja && (
+        <div className="ficha hoja" role="dialog" aria-label="Detalles" onClick={alPulsarFicha} onScrollCapture={alDeslizar}>
+          <button type="button" className="hoja-cerrar" onClick={() => setHoja(null)} aria-label="Cerrar">×</button>
+          <div className="hoja-asa" aria-hidden />
+          <div dangerouslySetInnerHTML={{ __html: hoja }} />
+          {aviso === "cuenta" && (
+            <p className="hoja-aviso">
+              Para pedir una reserva necesitas una cuenta. <Link href="/cuenta">Entrar con Google o email →</Link>
+            </p>
+          )}
+          {aviso === "pronto" && (
+            <p className="hoja-aviso">
+              🚧 Las reservas llegan muy pronto: podrás elegir fechas, escribir al dueño y recibir la dirección al aceptar.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className={styles.leyendaParking}>
         <span><i style={{ background: COLOR.libre }} />Plaza libre (usuarios)</span>

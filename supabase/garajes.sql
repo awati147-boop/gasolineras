@@ -49,6 +49,11 @@ create table if not exists garajes_privado (
 create or replace function garajes_antes() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
+  -- Cambios hechos por el administrador (SQL Editor, scripts con service_role): sin comprobaciones
+  if coalesce(auth.role(), '') not in ('authenticated', 'anon') then
+    new.actualizado := now();
+    return new;
+  end if;
   if not tiene_cuenta() then
     raise exception 'Necesitas una cuenta para publicar un garaje';
   end if;
