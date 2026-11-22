@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NOMBRE_APP } from "@/lib/app";
-import { ACTUALIZADO, TITULAR } from "@/lib/legal";
+import { ACTUALIZADO, TITULAR, contacto } from "@/lib/legal";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "Aviso legal" };
@@ -19,10 +19,10 @@ export default function AvisoLegal() {
         se informa de que {NOMBRE_APP} es un servicio de:
       </p>
       <ul>
-        <li><b>Titular:</b> {TITULAR.nombre}</li>
-        <li><b>NIF:</b> {TITULAR.nif}</li>
-        <li><b>Domicilio:</b> {TITULAR.domicilio}</li>
-        <li><b>Email:</b> {TITULAR.email}</li>
+        {TITULAR.nombre && <li><b>Titular:</b> {TITULAR.nombre}</li>}
+        {TITULAR.nif && <li><b>NIF:</b> {TITULAR.nif}</li>}
+        {TITULAR.domicilio && <li><b>Domicilio:</b> {TITULAR.domicilio}</li>}
+        <li><b>Contacto:</b> {contacto()}</li>
       </ul>
 
       <h2 className={styles.subtitulo}>Objeto</h2>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NOMBRE_APP } from "@/lib/app";
-import { ACTUALIZADO, TITULAR } from "@/lib/legal";
+import { ACTUALIZADO, contacto } from "@/lib/legal";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "Condiciones de uso" };
@@ -64,7 +64,7 @@ export default function Condiciones() {
       <h2 className={styles.subtitulo}>8. Cambios y contacto</h2>
       <p>
         Podemos actualizar estas condiciones; la fecha de arriba indica la última versión. Para cualquier duda o
-        reclamación: <b>{TITULAR.email}</b>. Se aplica la legislación española.
+        reclamación: <b>{contacto()}</b>. Se aplica la legislación española.
       </p>
       <p>
         Ver también: <Link href="/privacidad">Política de privacidad</Link> · <Link href="/aviso-legal">Aviso legal</Link>.

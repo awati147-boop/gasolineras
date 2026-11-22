@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NOMBRE_APP } from "@/lib/app";
-import { ACTUALIZADO, TITULAR } from "@/lib/legal";
+import { ACTUALIZADO, TITULAR, contacto } from "@/lib/legal";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "Política de privacidad" };
@@ -19,7 +19,7 @@ export default function Privacidad() {
       </p>
 
       <h2 className={styles.subtitulo}>Responsable</h2>
-      <p>{TITULAR.nombre} · NIF {TITULAR.nif} · {TITULAR.email}</p>
+      <p>{[TITULAR.nombre, TITULAR.nif && `NIF ${TITULAR.nif}`, contacto()].filter(Boolean).join(" · ")}</p>
 
       <h2 className={styles.subtitulo}>Qué datos tratamos y para qué</h2>
       <ul>
@@ -72,7 +72,7 @@ export default function Privacidad() {
       <h2 className={styles.subtitulo}>Tus derechos</h2>
       <p>
         Puedes pedir acceso, rectificación, supresión (borrar tu cuenta y tus datos), oposición, limitación y portabilidad
-        escribiendo a <b>{TITULAR.email}</b>. Si no quedas satisfecho, puedes reclamar ante la Agencia Española de
+        escribiendo a <b>{contacto()}</b>. Si no quedas satisfecho, puedes reclamar ante la Agencia Española de
         Protección de Datos (aepd.es).
       </p>
     </main>
