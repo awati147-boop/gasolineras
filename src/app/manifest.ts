@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
+import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
 
 // Manifiesto de la PWA: permite "Instalar app" / "Añadir a pantalla de inicio"
 export default function manifest(): MetadataRoute.Manifest {

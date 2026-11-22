@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist } from "next/font/google";
-import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
+import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
 import Pestanas from "./Pestanas";
+import AvisoInstalar from "./AvisoInstalar";
 import { IconoInfo, Logo } from "./Iconos";
 import "./globals.css";
 
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="pie">
           <Link href="/acerca">Acerca de · Fuentes · Privacidad</Link>
         </footer>
+        <AvisoInstalar />
         <Pestanas />
       </body>
     </html>

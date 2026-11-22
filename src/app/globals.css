@@ -129,3 +129,31 @@ button { font: inherit; }
 .ficha-tarifas div { position: relative; padding-left: 16px; line-height: 1.35; }
 .ficha-tarifas span { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; }
 .ficha-tarifas small { color: var(--sub); }
+
+/* ===== Aviso para instalar la app ===== */
+.aviso-instalar {
+  position: fixed; z-index: 30; left: 12px; right: 12px; max-width: 440px; margin: 0 auto;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  background: var(--superficie); color: var(--texto); border: 1px solid var(--borde); border-radius: 20px;
+  box-shadow: var(--sombra-fuerte); padding: 16px 16px 14px; animation: subir 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+@keyframes subir { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.aviso-cerrar {
+  position: absolute; top: 6px; right: 8px; width: 34px; height: 34px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--sub); font-size: 1.5rem; line-height: 1; cursor: pointer;
+}
+.aviso-cerrar:hover { background: var(--superficie-2); }
+.aviso-cab { display: flex; gap: 12px; align-items: center; margin-right: 28px; }
+.aviso-cab strong { display: block; font-size: 1.02rem; }
+.aviso-cab small { color: var(--sub); font-size: 0.85rem; line-height: 1.35; }
+.aviso-boton {
+  width: 100%; margin-top: 12px; padding: 12px; border: 0; border-radius: 14px;
+  background: var(--marca); color: #fff; font-weight: 700; font-size: 0.98rem; cursor: pointer;
+}
+.aviso-pasos { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.aviso-pasos li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.aviso-pasos li > span {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none;
+  background: var(--marca-suave); color: var(--marca); font-weight: 800; font-size: 0.75rem;
+}
+.aviso-pasos svg { color: #0a84ff; }

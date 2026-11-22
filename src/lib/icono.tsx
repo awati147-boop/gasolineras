@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og";
 
-export const NOMBRE_APP = "Gasolineras Baratas";
-export const NOMBRE_CORTO = "Gasolineras";
-export const COLOR_APP = "#0a7d3b";
+import { COLOR_APP } from "./app";
+export { NOMBRE_APP, NOMBRE_CORTO, COLOR_APP } from "./app";
 
 /** Icono de la app (PNG cuadrado): fondo verde con el símbolo del euro */
 export function icono(tam: number, conMargen = false) {
