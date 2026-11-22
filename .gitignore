@@ -47,3 +47,6 @@ next-env.d.ts
 /.open-next
 /.wrangler
 .dev.vars*
+
+# Configuración local con secretos (no subir)
+*.local.sql

@@ -8,11 +8,12 @@ import styles from "../page.module.css";
 import { IconoCheck, IconoInfo } from "../Iconos";
 import MisGarajes from "./MisGarajes";
 import MisReservas from "./MisReservas";
+import ActivarAvisos from "./ActivarAvisos";
 
 /** Usuario con cuenta "de verdad" (Google o email), no el anónimo de "Me voy" */
 const tieneCuenta = (u: User | null) => Boolean(u && !u.is_anonymous && u.email);
 
-export default function MiCuenta(config: ConfigSupabase) {
+export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid: string }) {
   const [usuario, setUsuario] = useState<User | null>(null);
   const [cargando, setCargando] = useState(true);
   const [email, setEmail] = useState("");
@@ -96,6 +97,7 @@ export default function MiCuenta(config: ConfigSupabase) {
         {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
         {guardado && <p className={styles.exito}>✅ Cambios guardados.</p>}
         <MisReservas {...config} />
+        {vapid && <ActivarAvisos {...config} vapid={vapid} />}
         <MisGarajes {...config} />
 
         <div className={styles.acciones}>
