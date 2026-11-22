@@ -212,6 +212,7 @@ export default function SolicitarReserva({ garajeId, ...config }: ConfigSupabase
           </button>
           <p className={styles.notaPrivacidad} style={{ textAlign: "center" }}>
             El dueño verá tu solicitud y podrá aceptarla o rechazarla. La dirección exacta se comparte al aceptar.
+            Al enviarla aceptas las <Link href="/condiciones">condiciones de uso</Link>.
           </p>
         </form>
       )}

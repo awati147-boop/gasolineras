@@ -6,6 +6,7 @@ import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador"
 import { urlFoto } from "@/lib/garajes";
 import { ESTADOS, eurosReserva, fechaReserva, terminada, type Reserva } from "@/lib/reservas";
 import styles from "../../../page.module.css";
+import Denunciar from "../../../Denunciar";
 
 type Mensaje = { id: number; autor: string; texto: string; creado: string };
 type Direccion = { lat: number; lon: number; direccion: string | null; indicaciones: string | null };
@@ -199,6 +200,7 @@ export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase 
           </form>
         )}
         <p className={styles.notaPrivacidad}>🔒 No compartas datos bancarios por el chat. Nunca te pediremos contraseñas.</p>
+        <Denunciar tipo="reserva" objetoId={reservaId} {...config} />
       </section>
 
       {/* ---------- Cancelar ---------- */}

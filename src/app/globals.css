@@ -210,3 +210,15 @@ button.ficha-ir { width: 100%; border: 0; font: inherit; font-weight: 700; curso
 .hoja p { margin: 4px 0; color: var(--sub); }
 .hoja-aviso { margin-top: 10px !important; padding: 10px 12px; border-radius: 12px; background: var(--marca-suave); color: var(--texto) !important; }
 @media (max-width: 520px) { .hoja .ficha-fotos img { height: 150px; } }
+
+/* ===== Denunciar ===== */
+.denunciar-enlace { display: block; margin: 12px auto 0; border: 0; background: none; color: var(--sub); font: inherit; font-size: 0.82rem; cursor: pointer; text-decoration: underline; }
+.denuncia { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--superficie-2); font-size: 0.88rem; }
+.denuncia label { display: flex; align-items: center; gap: 8px; }
+.denuncia input[type="radio"] { accent-color: var(--rojo); }
+.denuncia textarea { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); }
+.denuncia-botones { display: flex; gap: 8px; justify-content: flex-end; }
+.denuncia-botones button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); cursor: pointer; }
+.denuncia-botones button[type="submit"] { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.denuncia-error { color: var(--rojo); margin: 0; }
+.denuncia-hecha { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--marca-suave); font-size: 0.88rem; color: var(--texto) !important; }

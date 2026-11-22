@@ -41,7 +41,10 @@ export default function Acerca() {
 
       <h2 className={styles.subtitulo}>Privacidad</h2>
       <ul>
-        <li>No hay cuentas ni registro, y no guardamos datos personales.</li>
+        <li>
+          Para ver precios, aparcar o dejar tu plaza no necesitas cuenta. Solo la pedimos para publicar o reservar un
+          garaje. Detalles en la <Link href="/privacidad">Política de privacidad</Link>.
+        </li>
         <li>
           Si pulsas «Cerca de mí», tu ubicación se usa <strong>solo en tu dispositivo</strong> para centrar el mapa y
           calcular distancias. No se envía a nuestros servidores ni se guarda.

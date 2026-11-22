@@ -303,7 +303,7 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
         </button>
       </div>
       <p className={styles.notaPrivacidad} style={{ textAlign: "center" }}>
-        Al publicar aceptas que la app solo pone en contacto a las partes; el acuerdo es entre vosotros.
+        Al publicar aceptas las <Link href="/condiciones">condiciones de uso</Link>: la app solo pone en contacto a las partes y el acuerdo es entre vosotros.
       </p>
     </form>
   );

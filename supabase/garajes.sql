@@ -49,8 +49,9 @@ create table if not exists garajes_privado (
 create or replace function garajes_antes() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  -- Cambios hechos por el administrador (SQL Editor, scripts con service_role): sin comprobaciones
-  if coalesce(auth.role(), '') not in ('authenticated', 'anon') then
+  -- Cambios hechos por el administrador (SQL Editor, scripts con service_role) o por otro trigger
+  -- de la base de datos (p. ej. pausar un garaje con muchas denuncias): sin comprobaciones
+  if coalesce(auth.role(), '') not in ('authenticated', 'anon') or pg_trigger_depth() > 1 then
     new.actualizado := now();
     return new;
   end if;

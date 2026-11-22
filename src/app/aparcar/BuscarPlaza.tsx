@@ -11,6 +11,7 @@ import { ORA_ALICANTE, enAlicante } from "@/lib/ora";
 import { nombrePropio } from "@/lib/texto";
 import styles from "../page.module.css";
 import { IconoInfo, IconoUbicacion } from "../Iconos";
+import Denunciar from "../Denunciar";
 import { ACCESOS, textoPrecio, urlFoto, type Garaje } from "@/lib/garajes";
 
 type Plaza = { id: number; lat: number; lon: number; creada: string; expira: string };
@@ -138,6 +139,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   const [error, setError] = useState("");
   // Ficha abierta en la hoja inferior (HTML ya escapado) y aviso dentro de ella
   const [hoja, setHoja] = useState<string | null>(null);
+  const [hojaGaraje, setHojaGaraje] = useState<string | null>(null); // id del garaje mostrado (para denunciar)
   const [aviso, setAviso] = useState("");
   const router = useRouter();
 
@@ -420,12 +422,13 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
           const g = garajesRef.current.get(String(e.features?.[0]?.properties.id));
           if (!g) return;
-          abrirHoja(fichaGaraje(g, config.url), [g.lon_aprox, g.lat_aprox]);
+          abrirHoja(fichaGaraje(g, config.url), [g.lon_aprox, g.lat_aprox], g.id);
         };
         /** Muestra la ficha en la hoja inferior y centra el punto en la parte de arriba del mapa */
-        const abrirHoja = (html: string, centro: [number, number]) => {
+        const abrirHoja = (html: string, centro: [number, number], garajeId: string | null = null) => {
           setAviso("");
           setHoja(html);
+          setHojaGaraje(garajeId);
           const alto = m.getContainer().clientHeight;
           m.easeTo({ center: centro, offset: [0, -alto * 0.22], duration: 400 });
         };
@@ -534,6 +537,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           <button type="button" className="hoja-cerrar" onClick={() => setHoja(null)} aria-label="Cerrar">×</button>
           <div className="hoja-asa" aria-hidden />
           <div dangerouslySetInnerHTML={{ __html: hoja }} />
+          {hojaGaraje && <Denunciar key={hojaGaraje} tipo="garaje" objetoId={hojaGaraje} {...config} />}
           {aviso === "cuenta" && (
             <p className="hoja-aviso">
               Para pedir una reserva necesitas una cuenta. <Link href="/cuenta">Entrar con Google o email →</Link>
