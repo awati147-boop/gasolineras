@@ -158,3 +158,5 @@ button { font: inherit; }
   background: var(--marca-suave); color: var(--marca); font-weight: 800; font-size: 0.75rem;
 }
 .aviso-pasos svg { color: #0a84ff; }
+.ficha-foto { display: block; width: calc(100% + 32px); margin: -16px -16px 12px; height: 140px; object-fit: cover; border-radius: var(--radio) var(--radio) 0 0; }
+button.ficha-ir { width: 100%; border: 0; font: inherit; font-weight: 700; cursor: pointer; }
