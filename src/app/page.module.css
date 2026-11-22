@@ -308,3 +308,4 @@
 .escribir input:focus { outline: 0; border-color: var(--marca); }
 .escribir .boton { border-radius: 50%; width: 46px; height: 46px; padding: 0; font-size: 1.1rem; }
 .enlaceCancelar { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--rojo); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.accionesGaraje a { padding: 7px 12px; font-size: 0.85rem; text-decoration: none; }

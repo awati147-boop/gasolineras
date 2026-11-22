@@ -20,6 +20,7 @@ export default function MiCuenta(config: ConfigSupabase) {
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState("");
   const [publicado] = useState(() => typeof window !== "undefined" && window.location.search.includes("publicado=1"));
+  const [guardado] = useState(() => typeof window !== "undefined" && window.location.search.includes("guardado=1"));
 
   useEffect(() => {
     const db = supabaseNavegador(config);
@@ -93,6 +94,7 @@ export default function MiCuenta(config: ConfigSupabase) {
         <p className={styles.zona}>{usuario!.email}</p>
 
         {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
+        {guardado && <p className={styles.exito}>✅ Cambios guardados.</p>}
         <MisReservas {...config} />
         <MisGarajes {...config} />
 

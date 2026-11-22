@@ -7,12 +7,13 @@ import type { Map as MapaML, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
-import { ACCESOS, aproximar, reducirFoto } from "@/lib/garajes";
+import { ACCESOS, aproximar, reducirFoto, urlFoto, type Garaje } from "@/lib/garajes";
 import styles from "../../page.module.css";
 import { IconoUbicacion } from "../../Iconos";
 
 type Punto = { lat: number; lon: number };
-type FotoLocal = { blob: Blob; vista: string };
+// Foto nueva (aún en el móvil) o ya subida (ruta en el almacenamiento)
+type FotoLocal = { blob: Blob; vista: string; ruta?: undefined } | { ruta: string; vista: string; blob?: undefined };
 const MAX_FOTOS = 6;
 const CENTRO_INICIAL: Punto = { lat: 38.3452, lon: -0.481 }; // Alicante
 
@@ -22,11 +23,14 @@ const numero = (v: string) => {
   return v.trim() && Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
 };
 
-export default function PublicarGaraje(config: ConfigSupabase) {
+export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase & { editarId?: string }) {
   const router = useRouter();
   const [comprobando, setComprobando] = useState(true);
   const [punto, setPunto] = useState<Punto>(CENTRO_INICIAL);
   const [puntoElegido, setPuntoElegido] = useState(false);
+  const [puntoMovido, setPuntoMovido] = useState(false);
+  const [fotosOriginales, setFotosOriginales] = useState<string[]>([]);
+  const [aproxOriginal, setAproxOriginal] = useState<{ lat_aprox: number; lon_aprox: number } | null>(null);
   const [f, setF] = useState({
     titulo: "", tipo: "plaza" as "plaza" | "cerrado", descripcion: "", direccion: "", indicaciones: "",
     hora: "", dia: "", mes: "", disponibilidad: "", altura: "", acceso: "mando", enchufe: false,
@@ -39,11 +43,32 @@ export default function PublicarGaraje(config: ConfigSupabase) {
 
   // Solo usuarios con cuenta
   useEffect(() => {
-    supabaseNavegador(config).auth.getUser().then(({ data }) => {
-      if (!data.user || data.user.is_anonymous) router.replace("/cuenta");
-      else setComprobando(false);
-    });
-  }, [config, router]);
+    const db = supabaseNavegador(config);
+    (async () => {
+      const { data } = await db.auth.getUser();
+      if (!data.user || data.user.is_anonymous) return router.replace("/cuenta");
+      if (editarId) {
+        const { data: mios } = await db.rpc("mis_garajes");
+        const g = ((mios as Garaje[] | null) ?? []).find((x) => x.id === editarId);
+        if (!g) return router.replace("/cuenta");
+        const { data: priv } = await db.from("garajes_privado").select("lat, lon, direccion, indicaciones").eq("garaje_id", editarId).maybeSingle();
+        const texto = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
+        setF({
+          titulo: g.titulo, tipo: g.tipo, descripcion: g.descripcion ?? "",
+          direccion: priv?.direccion ?? "", indicaciones: priv?.indicaciones ?? "",
+          hora: texto(g.precio_hora), dia: texto(g.precio_dia), mes: texto(g.precio_mes),
+          disponibilidad: g.disponibilidad ?? "", altura: texto(g.altura_max), acceso: g.acceso ?? "mando", enchufe: g.enchufe,
+        });
+        const rutas = g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [];
+        setFotos(rutas.map((ruta) => ({ ruta, vista: urlFoto(config.url, ruta) })));
+        setFotosOriginales(rutas);
+        setAproxOriginal({ lat_aprox: g.lat_aprox, lon_aprox: g.lon_aprox });
+        setPunto(priv ? { lat: priv.lat, lon: priv.lon } : { lat: g.lat_aprox, lon: g.lon_aprox });
+        setPuntoElegido(true);
+      }
+      setComprobando(false);
+    })();
+  }, [config, router, editarId]);
 
   async function elegirFotos(e: React.ChangeEvent<HTMLInputElement>) {
     const archivos = Array.from(e.target.files ?? []);
@@ -66,7 +91,7 @@ export default function PublicarGaraje(config: ConfigSupabase) {
 
   function quitarFoto(i: number) {
     setFotos((x) => {
-      URL.revokeObjectURL(x[i].vista);
+      if (x[i].blob) URL.revokeObjectURL(x[i].vista);
       return x.filter((_, j) => j !== i);
     });
   }
@@ -89,34 +114,57 @@ export default function PublicarGaraje(config: ConfigSupabase) {
       const { data: u } = await db.auth.getUser();
       if (!u.user) throw new Error("Tu sesión ha caducado. Vuelve a entrar.");
 
-      // 1) Fotos (opcionales) en la carpeta del usuario, en orden (la primera es la portada)
+      // 1) Fotos en la carpeta del usuario, en orden (la primera es la portada). Solo se suben las nuevas.
       const rutas: string[] = [];
+      const subidasAhora: string[] = [];
       for (const [i, foto] of fotos.entries()) {
+        if (!foto.blob) {
+          rutas.push(foto.ruta);
+          continue;
+        }
         const ruta = `${u.user.id}/${crypto.randomUUID()}.jpg`;
         const { error } = await db.storage.from("garajes").upload(ruta, foto.blob, { contentType: "image/jpeg" });
         if (error) {
-          if (rutas.length) await db.storage.from("garajes").remove(rutas); // no dejar fotos sueltas
+          if (subidasAhora.length) await db.storage.from("garajes").remove(subidasAhora); // no dejar fotos sueltas
           throw new Error(`No se ha podido subir la foto ${i + 1}.`);
         }
         rutas.push(ruta);
+        subidasAhora.push(ruta);
+      }
+
+      const datos = {
+        titulo: f.titulo.trim(),
+        tipo: f.tipo,
+        descripcion: f.descripcion.trim() || null,
+        precio_hora, precio_dia, precio_mes,
+        disponibilidad: f.disponibilidad.trim() || null,
+        altura_max: numero(f.altura),
+        acceso: f.acceso,
+        enchufe: f.enchufe,
+        foto: rutas[0] ?? null,
+        fotos: rutas,
+      };
+
+      if (editarId) {
+        // ----- Guardar cambios -----
+        // Solo se recalcula la zona aproximada si se ha movido el marcador
+        const aprox = puntoMovido || !aproxOriginal ? aproximar(punto.lat, punto.lon) : aproxOriginal;
+        const { error: e1 } = await db.from("garajes").update({ ...datos, ...aprox }).eq("id", editarId);
+        if (e1) throw new Error("No se han podido guardar los cambios. Revisa los datos.");
+        const { error: e2 } = await db.from("garajes_privado").upsert({
+          garaje_id: editarId, lat: punto.lat, lon: punto.lon,
+          direccion: f.direccion.trim() || null, indicaciones: f.indicaciones.trim() || null,
+        }, { onConflict: "garaje_id" });
+        if (e2) throw new Error("Se ha guardado el anuncio, pero no la dirección.");
+        const quitadas = fotosOriginales.filter((r) => !rutas.includes(r));
+        if (quitadas.length) await db.storage.from("garajes").remove(quitadas);
+        return router.push("/cuenta?guardado=1");
       }
 
       // 2) Anuncio público (ubicación aproximada)
       const { data: g, error: e1 } = await db
         .from("garajes")
-        .insert({
-          titulo: f.titulo.trim(),
-          tipo: f.tipo,
-          descripcion: f.descripcion.trim() || null,
-          precio_hora, precio_dia, precio_mes,
-          disponibilidad: f.disponibilidad.trim() || null,
-          altura_max: numero(f.altura),
-          acceso: f.acceso,
-          enchufe: f.enchufe,
-          foto: rutas[0] ?? null,
-          fotos: rutas,
-          ...aproximar(punto.lat, punto.lon),
-        })
+        .insert({ ...datos, ...aproximar(punto.lat, punto.lon) })
         .select("id")
         .single();
       if (e1) throw new Error(/máximo/.test(e1.message) ? e1.message : "No se ha podido publicar. Revisa los datos.");
@@ -146,7 +194,7 @@ export default function PublicarGaraje(config: ConfigSupabase) {
       <fieldset className={styles.seccion}>
         <legend><span>1</span> ¿Dónde está?</legend>
         <p className={styles.zona}>Mueve el mapa o arrastra el marcador hasta la entrada de tu garaje.</p>
-        <MapaElegir punto={punto} onCambio={(p) => { setPunto(p); setPuntoElegido(true); }} />
+        <MapaElegir punto={punto} onCambio={(p) => { setPunto(p); setPuntoElegido(true); setPuntoMovido(true); }} />
         <label className={styles.campo}>
           Dirección <small>(privada: solo la verá quien reserve)</small>
           <input value={f.direccion} onChange={cambiar("direccion")} maxLength={200} placeholder="C/ Mayor 12, Alicante" />
@@ -251,7 +299,7 @@ export default function PublicarGaraje(config: ConfigSupabase) {
       <div className={styles.acciones}>
         <Link href="/cuenta" className={styles.botonSec}>Cancelar</Link>
         <button type="submit" className={styles.boton} disabled={enviando}>
-          {enviando ? "Publicando…" : "Publicar garaje"}
+          {enviando ? (editarId ? "Guardando…" : "Publicando…") : editarId ? "Guardar cambios" : "Publicar garaje"}
         </button>
       </div>
       <p className={styles.notaPrivacidad} style={{ textAlign: "center" }}>

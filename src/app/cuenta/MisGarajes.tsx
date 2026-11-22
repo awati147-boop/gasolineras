@@ -73,6 +73,7 @@ export default function MisGarajes(config: ConfigSupabase) {
                 </span>
               </div>
               <div className={styles.accionesGaraje}>
+                <Link href={`/cuenta/publicar?editar=${g.id}`} className={styles.botonSec}>Editar</Link>
                 <button className={styles.botonSec} onClick={() => alternar(g)}>{g.activo ? "Pausar" : "Activar"}</button>
                 <button className={styles.botonPeligro} onClick={() => borrar(g)} aria-label={`Borrar ${g.titulo}`}>Borrar</button>
               </div>
