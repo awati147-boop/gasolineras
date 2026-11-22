@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
 import styles from "../page.module.css";
 import { IconoCheck, IconoInfo } from "../Iconos";
+import MisGarajes from "./MisGarajes";
 
 /** Usuario con cuenta "de verdad" (Google o email), no el anónimo de "Me voy" */
 const tieneCuenta = (u: User | null) => Boolean(u && !u.is_anonymous && u.email);
@@ -17,6 +18,7 @@ export default function MiCuenta(config: ConfigSupabase) {
   const [enviado, setEnviado] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState("");
+  const [publicado] = useState(() => typeof window !== "undefined" && window.location.search.includes("publicado=1"));
 
   useEffect(() => {
     const db = supabaseNavegador(config);
@@ -89,10 +91,8 @@ export default function MiCuenta(config: ConfigSupabase) {
         <h1 className={styles.titulo}>Hola, {nombre}</h1>
         <p className={styles.zona}>{usuario!.email}</p>
 
-        <section className={`${styles.tarjeta} ${styles.bloqueCuenta}`}>
-          <h2 className={styles.subtitulo}>🏠 Mis garajes</h2>
-          <p className={styles.zona}>Muy pronto podrás publicar tu garaje y alquilarlo por horas o días.</p>
-        </section>
+        {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
+        <MisGarajes {...config} />
 
         <div className={styles.acciones}>
           <button className={styles.botonSec} onClick={salir}>Cerrar sesión</button>

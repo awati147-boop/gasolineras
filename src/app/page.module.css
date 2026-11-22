@@ -203,3 +203,58 @@
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .bloqueCuenta { padding: 16px; margin: 16px 0; text-align: left; }
+
+/* ===== Garajes: formulario y lista ===== */
+.formulario { max-width: 640px; }
+.formGaraje { display: flex; flex-direction: column; gap: 14px; }
+.seccion { border: 1px solid var(--borde); border-radius: var(--radio); background: var(--superficie); box-shadow: var(--sombra); padding: 14px 16px 16px; margin: 0; min-width: 0; }
+.seccion legend { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.05rem; padding: 0 6px; }
+.seccion legend span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--marca); color: #fff; font-size: 0.82rem; }
+.campo { display: flex; flex-direction: column; gap: 5px; font-weight: 650; font-size: 0.9rem; margin-top: 12px; min-width: 0; }
+.campo small { color: var(--sub); font-weight: 500; }
+.campo input, .campo select, .campo textarea {
+  font: inherit; font-weight: 500; font-size: 1rem; padding: 11px 12px; border-radius: 12px;
+  border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); width: 100%;
+}
+.campo input:focus, .campo select:focus, .campo textarea:focus { outline: 0; border-color: var(--marca); box-shadow: 0 0 0 4px var(--marca-suave); }
+.fila2, .fila3 { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.fila3 { grid-template-columns: 1fr 1fr 1fr; }
+.conEuro { position: relative; display: block; }
+.conEuro i { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--sub); font-style: normal; }
+.conEuro input { padding-right: 28px; }
+.check { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 0.95rem; }
+.check input { width: 20px; height: 20px; accent-color: var(--marca); }
+.opcionesTipo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.opcion, .opcionActiva {
+  position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 14px; cursor: pointer;
+  border: 2px solid var(--borde); background: var(--fondo); font-size: 0.92rem;
+}
+.opcionActiva { border-color: var(--marca); background: var(--marca-suave); }
+.opcion input, .opcionActiva input { position: absolute; opacity: 0; pointer-events: none; }
+.opcion small, .opcionActiva small { color: var(--sub); font-size: 0.78rem; }
+.opcionIcono { font-size: 1.5rem; }
+.notaPrivacidad { font-size: 0.8rem; color: var(--sub); margin: 10px 0 0; }
+.subirFoto {
+  position: relative; display: grid; place-items: center; min-height: 170px; border-radius: 14px; overflow: hidden; cursor: pointer;
+  border: 2px dashed var(--borde); background: var(--fondo); text-align: center; margin-top: 8px;
+}
+.subirFoto span { display: flex; flex-direction: column; gap: 4px; font-size: 2rem; padding: 20px; }
+.subirFoto span b { font-size: 1rem; }
+.subirFoto span small { font-size: 0.8rem; color: var(--sub); }
+.subirFoto img { width: 100%; max-height: 280px; object-fit: cover; }
+.subirFoto input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.formGaraje .acciones a { flex: 1; max-width: 240px; text-decoration: none; }
+.cabBloque { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cabBloque .boton { padding: 8px 14px; font-size: 0.9rem; text-decoration: none; }
+.vacioGaraje { text-align: center; padding: 8px 0 4px; }
+.vacioGaraje p { color: var(--sub); line-height: 1.5; }
+.vacioGaraje .boton { text-decoration: none; }
+.miGaraje { display: flex; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--borde); border-radius: var(--radio); flex-wrap: wrap; }
+.miniatura { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex: none; display: grid; place-items: center; background: var(--superficie-2); font-size: 1.6rem; }
+.estadoActivo { color: var(--marca); font-size: 0.8rem; font-weight: 700; }
+.estadoPausado { color: var(--sub); font-size: 0.8rem; font-weight: 700; }
+.accionesGaraje { display: flex; gap: 6px; margin-left: auto; }
+.accionesGaraje button { padding: 7px 12px; font-size: 0.85rem; }
+.botonPeligro { border: 1px solid color-mix(in srgb, var(--rojo) 40%, var(--borde)); background: transparent; color: var(--rojo); border-radius: 14px; font-weight: 700; cursor: pointer; }
+.exito { background: var(--marca-suave); color: var(--texto); border-radius: var(--radio-s); padding: 10px 12px; font-size: 0.92rem; }
+@media (max-width: 480px) { .fila3 { grid-template-columns: 1fr 1fr; } }
