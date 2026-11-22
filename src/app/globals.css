@@ -129,3 +129,96 @@ button { font: inherit; }
 .ficha-tarifas div { position: relative; padding-left: 16px; line-height: 1.35; }
 .ficha-tarifas span { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; }
 .ficha-tarifas small { color: var(--sub); }
+.cabecera-acciones { display: flex; gap: 2px; }
+
+/* ===== Aviso para instalar la app ===== */
+.aviso-instalar {
+  position: fixed; z-index: 30; left: 12px; right: 12px; max-width: 440px; margin: 0 auto;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  background: var(--superficie); color: var(--texto); border: 1px solid var(--borde); border-radius: 20px;
+  box-shadow: var(--sombra-fuerte); padding: 16px 16px 14px; animation: subir 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+@keyframes subir { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.aviso-cerrar {
+  position: absolute; top: 6px; right: 8px; width: 34px; height: 34px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--sub); font-size: 1.5rem; line-height: 1; cursor: pointer;
+}
+.aviso-cerrar:hover { background: var(--superficie-2); }
+.aviso-cab { display: flex; gap: 12px; align-items: center; margin-right: 28px; }
+.aviso-cab strong { display: block; font-size: 1.02rem; }
+.aviso-cab small { color: var(--sub); font-size: 0.85rem; line-height: 1.35; }
+.aviso-boton {
+  width: 100%; margin-top: 12px; padding: 12px; border: 0; border-radius: 14px;
+  background: var(--marca); color: #fff; font-weight: 700; font-size: 0.98rem; cursor: pointer;
+}
+.aviso-pasos { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.aviso-pasos li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.aviso-pasos li > span {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none;
+  background: var(--marca-suave); color: var(--marca); font-weight: 800; font-size: 0.75rem;
+}
+.aviso-pasos svg { color: #0a84ff; }
+.ficha-foto { display: block; width: calc(100% + 32px); margin: -16px -16px 12px; height: 140px; object-fit: cover; border-radius: var(--radio) var(--radio) 0 0; }
+button.ficha-ir { width: 100%; border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+
+/* Fichas del mapa más compactas en móvil */
+.ficha-desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 520px) {
+  .ficha .maplibregl-popup-content {
+    max-height: 55vh; overflow-y: auto; overscroll-behavior: contain;
+    padding: 12px 12px 10px; min-width: 0; font-size: 0.84rem; line-height: 1.35;
+  }
+  .ficha-foto { width: calc(100% + 24px); margin: -12px -12px 10px; height: 96px; }
+  .ficha .marca { width: 32px; height: 32px; border-radius: 9px; font-size: 0.75rem; }
+  .ficha-cab { gap: 9px; }
+  .ficha-cab strong { font-size: 0.95rem; }
+  .ficha-precio { margin: 8px 0 4px; }
+  .ficha-precio b { font-size: 1.3rem; }
+  .ficha p { margin: 2px 0; }
+  .ficha-ir { margin-top: 8px; padding: 9px; }
+  .ficha-tarifas { gap: 6px; margin: 8px 0 4px; }
+}
+
+/* Carrusel de fotos en la ficha */
+.ficha-carrusel { position: relative; margin: -16px -16px 12px; }
+.ficha-fotos { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--radio) var(--radio) 0 0; }
+.ficha-fotos::-webkit-scrollbar { display: none; }
+.ficha-fotos img { flex: 0 0 100%; width: 100%; height: 150px; object-fit: cover; scroll-snap-align: start; }
+.ficha-contador { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 0.72rem; font-weight: 700; }
+@media (max-width: 520px) {
+  .ficha-carrusel { margin: -12px -12px 10px; }
+  .ficha-fotos img { height: 110px; }
+}
+
+/* ===== Hoja inferior con la ficha (sustituye al globo del mapa) ===== */
+.hoja {
+  position: fixed; z-index: 25; left: 8px; right: 8px; max-width: 460px; margin: 0 auto;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  background: var(--superficie); color: var(--texto); border: 1px solid var(--borde); border-radius: 22px;
+  box-shadow: var(--sombra-fuerte); padding: 16px; font-size: 0.92rem; line-height: 1.4;
+  animation: subir 0.28s cubic-bezier(0.2, 1.1, 0.4, 1);
+}
+.hoja-asa { width: 40px; height: 4px; border-radius: 4px; background: var(--borde); margin: -8px auto 10px; }
+.hoja-cerrar {
+  position: sticky; float: right; top: 0; z-index: 3; width: 34px; height: 34px; margin: -6px -6px 0 0;
+  border: 0; border-radius: 50%; background: var(--superficie-2); color: var(--texto); font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
+.hoja .ficha-carrusel { margin: 0 0 12px; clear: both; }
+.hoja .ficha-fotos { border-radius: 14px; }
+.hoja .ficha-fotos img { height: 180px; }
+.hoja p { margin: 4px 0; color: var(--sub); }
+.hoja-aviso { margin-top: 10px !important; padding: 10px 12px; border-radius: 12px; background: var(--marca-suave); color: var(--texto) !important; }
+@media (max-width: 520px) { .hoja .ficha-fotos img { height: 150px; } }
+
+/* ===== Denunciar ===== */
+.denunciar-enlace { display: block; margin: 12px auto 0; border: 0; background: none; color: var(--sub); font: inherit; font-size: 0.82rem; cursor: pointer; text-decoration: underline; }
+.denuncia { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--superficie-2); font-size: 0.88rem; }
+.denuncia label { display: flex; align-items: center; gap: 8px; }
+.denuncia input[type="radio"] { accent-color: var(--rojo); }
+.denuncia textarea { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); }
+.denuncia-botones { display: flex; gap: 8px; justify-content: flex-end; }
+.denuncia-botones button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); cursor: pointer; }
+.denuncia-botones button[type="submit"] { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.denuncia-error { color: var(--rojo); margin: 0; }
+.denuncia-hecha { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--marca-suave); font-size: 0.88rem; color: var(--texto) !important; }

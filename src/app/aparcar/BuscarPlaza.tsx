@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
@@ -9,6 +11,8 @@ import { ORA_ALICANTE, enAlicante } from "@/lib/ora";
 import { nombrePropio } from "@/lib/texto";
 import styles from "../page.module.css";
 import { IconoInfo, IconoUbicacion } from "../Iconos";
+import Denunciar from "../Denunciar";
+import { ACCESOS, textoPrecio, urlFoto, type Garaje } from "@/lib/garajes";
 
 type Plaza = { id: number; lat: number; lon: number; creada: string; expira: string };
 type Aparcamiento = {
@@ -16,20 +20,21 @@ type Aparcamiento = {
   de_pago: boolean | null; plazas: number | null; plazas_pmr: number | null; horario: string | null;
   operador: string | null; precio: string | null; lat: number; lon: number;
 };
-type Filtro = "todo" | "libres" | "gratis" | "pago" | "ora";
+type Filtro = "todo" | "libres" | "garajes" | "gratis" | "pago" | "ora";
 
 const ZONA_INICIAL: [number, number, number, number] = [-0.515, 38.335, -0.47, 38.36]; // centro de Alicante
 const REFRESCO_MS = 15_000;
 const ZOOM_MINIMO_PARKINGS = 12;
 
 // Colores por categoría (mismos en mapa, filtros y leyenda)
-const COLOR = { libre: "#16a34a", gratis: "#0d9488", pago: "#2563eb", nd: "#64748b", ora: "#7c3aed" };
+const COLOR = { libre: "#16a34a", gratis: "#0d9488", pago: "#2563eb", nd: "#64748b", ora: "#7c3aed", garaje: "#ea580c" };
 
 const FILTROS: { id: Filtro; texto: string; color?: string }[] = [
   { id: "todo", texto: "Todo" },
   { id: "libres", texto: "Plazas libres", color: COLOR.libre },
   { id: "gratis", texto: "Gratis", color: COLOR.gratis },
   { id: "pago", texto: "De pago", color: COLOR.pago },
+  { id: "garajes", texto: "Garajes", color: COLOR.garaje },
   { id: "ora", texto: "Zona ORA", color: COLOR.ora },
 ];
 
@@ -89,19 +94,74 @@ function fichaAparcamiento(a: Aparcamiento) {
   );
 }
 
+/** Carrusel de fotos (se desliza con el dedo; el contador se actualiza al desplazarse) */
+function carrusel(fotos: string[], supabaseUrl: string) {
+  if (!fotos.length) return "";
+  const imgs = fotos.map((f, i) => `<img src="${urlFoto(supabaseUrl, f)}" alt="Foto ${i + 1}" loading="lazy">`).join("");
+  const contador = fotos.length > 1 ? `<span class="ficha-contador">1/${fotos.length}</span>` : "";
+  return `<div class="ficha-carrusel"><div class="ficha-fotos">${imgs}</div>${contador}</div>`;
+}
+
+/** Ficha HTML de un garaje de particular */
+function fichaGaraje(g: Garaje, supabaseUrl: string) {
+  const datos = [
+    g.disponibilidad && `🗓️ ${escapar(g.disponibilidad)}`,
+    g.altura_max && `↕️ Altura máx. ${String(g.altura_max).replace(".", ",")} m`,
+    g.acceso && `🔑 ${ACCESOS[g.acceso]}`,
+    g.enchufe && "⚡ Enchufe para coche eléctrico",
+  ].filter(Boolean);
+  return (
+    carrusel(g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [], supabaseUrl) +
+    `<div class="ficha-cab"><span class="marca" style="background:${COLOR.garaje}">🏠</span>` +
+    `<div><strong>${escapar(g.titulo)}</strong><small>${g.tipo === "cerrado" ? "Garaje cerrado" : "Plaza en garaje"} · de particular</small></div></div>` +
+    `<div class="ficha-precio"><b>${escapar(textoPrecio(g))}</b></div>` +
+    (g.descripcion ? `<p class="ficha-desc">${escapar(g.descripcion)}</p>` : "") +
+    datos.map((d) => `<p>${d}</p>`).join("") +
+    `<p><small>📍 Ubicación aproximada: la dirección exacta se comparte al aceptar la reserva.</small></p>` +
+    `<button class="ficha-ir" type="button" data-solicitar="${g.id}">Solicitar reserva</button>`
+  );
+}
+
 export default function BuscarPlaza(config: ConfigSupabase) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaML | null>(null);
   const plazasRef = useRef<Plaza[]>([]);
   const aparcRef = useRef<Map<string, Aparcamiento>>(new Map());
+  const garajesRef = useRef<Map<string, Garaje>>(new Map());
   const geolocalizar = useRef<GeolocateControl | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("todo");
   const filtroRef = useRef<Filtro>("todo");
   const [vigentes, setVigentes] = useState(0);
   const [conteo, setConteo] = useState({ gratis: 0, pago: 0, nd: 0, ora: 0 });
+  const [numGarajes, setNumGarajes] = useState(0);
   const [lejos, setLejos] = useState(false);
   const [actualizado, setActualizado] = useState<Date | null>(null);
   const [error, setError] = useState("");
+  // Ficha abierta en la hoja inferior (HTML ya escapado) y aviso dentro de ella
+  const [hoja, setHoja] = useState<string | null>(null);
+  const [hojaGaraje, setHojaGaraje] = useState<string | null>(null); // id del garaje mostrado (para denunciar)
+  const [aviso, setAviso] = useState("");
+  const router = useRouter();
+
+  /** Clics dentro de la ficha: botón "Solicitar reserva" */
+  async function alPulsarFicha(e: React.MouseEvent<HTMLDivElement>) {
+    const boton = (e.target as HTMLElement).closest("[data-solicitar]");
+    if (!boton) return;
+    const { data } = await supabaseNavegador(config).auth.getUser();
+    if (!data.user || data.user.is_anonymous) {
+      setAviso("cuenta");
+    } else {
+      router.push(`/reservar/${boton.getAttribute("data-solicitar")}`);
+    }
+  }
+
+  /** Contador "2/4" del carrusel de fotos al deslizar */
+  function alDeslizar(e: React.UIEvent<HTMLDivElement>) {
+    const tira = e.target as HTMLElement;
+    if (!tira.classList?.contains("ficha-fotos")) return;
+    const cont = tira.parentElement?.querySelector(".ficha-contador");
+    if (cont) cont.textContent = `${Math.round(tira.scrollLeft / tira.clientWidth) + 1}/${tira.children.length}`;
+  }
 
   /** Muestra u oculta capas según el filtro elegido */
   const aplicarFiltro = useCallback((f: Filtro) => {
@@ -113,7 +173,12 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     }
     const filtroAparc: FilterSpecification | null =
       f === "todo" ? null : f === "libres" ? ["==", ["get", "cat"], "__ninguno__"] : ["==", ["get", "cat"], f];
-    for (const capa of ["aparc-circulo", "aparc-letra"]) m.setFilter(capa, filtroAparc);
+    for (const capa of ["aparc-circulo", "aparc-letra"]) {
+      m.setFilter(capa, f === "garajes" ? ["==", ["get", "cat"], "__ninguno__"] : filtroAparc);
+    }
+    for (const capa of ["garajes-zona", "garajes-punto", "garajes-icono"]) {
+      m.setLayoutProperty(capa, "visibility", f === "todo" || f === "garajes" ? "visible" : "none");
+    }
   }, []);
 
   /** Repinta las plazas (los minutos cambian aunque no haya datos nuevos) */
@@ -188,6 +253,32 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     });
   }, [config]);
 
+  /** Garajes de particulares activos en la zona visible */
+  const cargarGarajes = useCallback(async () => {
+    const m = mapaRef.current;
+    if (!m) return;
+    const b = m.getBounds();
+    const { data, error } = await supabaseNavegador(config)
+      .from("garajes")
+      .select("id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, altura_max, acceso, enchufe, foto, fotos, lat_aprox, lon_aprox, activo, creado")
+      .eq("activo", true)
+      .gte("lat_aprox", b.getSouth()).lte("lat_aprox", b.getNorth())
+      .gte("lon_aprox", b.getWest()).lte("lon_aprox", b.getEast())
+      .limit(500);
+    if (error) return;
+    const lista = data as Garaje[];
+    garajesRef.current = new Map(lista.map((g) => [g.id, g]));
+    setNumGarajes(lista.length);
+    (m.getSource("garajes") as GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: lista.map((g) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [g.lon_aprox, g.lat_aprox] },
+        properties: { id: g.id },
+      })),
+    });
+  }, [config]);
+
   useEffect(() => {
     let cancelado = false;
     let espera: ReturnType<typeof setTimeout>;
@@ -237,6 +328,42 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           paint: { "text-color": "#fff" },
         });
 
+        // --- Garajes de particulares: zona aproximada (~100 m) + marcador ---
+        m.addSource("garajes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        m.addLayer({
+          id: "garajes-zona",
+          type: "circle",
+          source: "garajes",
+          minzoom: 14,
+          paint: {
+            // ~100 m de radio en píxeles según el zoom (aprox. para latitudes de España)
+            "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 14, 9, 18, 140],
+            "circle-color": COLOR.garaje,
+            "circle-opacity": 0.12,
+            "circle-stroke-color": COLOR.garaje,
+            "circle-stroke-width": 1,
+            "circle-stroke-opacity": 0.4,
+          },
+        });
+        m.addLayer({
+          id: "garajes-punto",
+          type: "circle",
+          source: "garajes",
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 14],
+            "circle-color": COLOR.garaje,
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#fff",
+          },
+        });
+        m.addLayer({
+          id: "garajes-icono",
+          type: "symbol",
+          source: "garajes",
+          layout: { "text-field": "G", "text-font": ["Open Sans Semibold"], "text-size": 13, "text-allow-overlap": true },
+          paint: { "text-color": "#fff" },
+        });
+
         // --- Plazas libres (encima, más grandes) ---
         m.addSource("plazas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         m.addLayer({
@@ -276,29 +403,44 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           if (!f) return;
           const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
           const min = Number(f.properties.minutos);
-          new maplibregl.Popup({ offset: 14, className: "ficha" })
-            .setLngLat([lon, lat])
-            .setHTML(
-              `<div class="ficha-cab"><span class="marca" style="background:${COLOR.libre}">P</span>` +
-                `<div><strong>Plaza libre</strong><small>${min === 0 ? "Hace menos de 1 min" : `Hace ${min} min`}</small></div></div>` +
-                `<p>Puede que ya la haya ocupado alguien: cuanto más reciente, mejor.</p>` +
-                comoLlegar(lat, lon),
-            )
-            .addTo(m);
+          abrirHoja(
+            `<div class="ficha-cab"><span class="marca" style="background:${COLOR.libre}">P</span>` +
+              `<div><strong>Plaza libre</strong><small>${min === 0 ? "Hace menos de 1 min" : `Hace ${min} min`}</small></div></div>` +
+              `<p>Puede que ya la haya ocupado alguien: cuanto más reciente, mejor.</p>` +
+              comoLlegar(lat, lon),
+            [lon, lat],
+          );
         };
         const abrirAparcamiento = (e: MapLayerMouseEvent) => {
           // Si en el mismo punto hay una plaza libre, manda la plaza
           if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
           const a = aparcRef.current.get(String(e.features?.[0]?.properties.id));
           if (!a) return;
-          new maplibregl.Popup({ offset: 10, className: "ficha", maxWidth: "310px" })
-            .setLngLat([a.lon, a.lat])
-            .setHTML(fichaAparcamiento(a))
-            .addTo(m);
+          abrirHoja(fichaAparcamiento(a), [a.lon, a.lat]);
         };
+        const abrirGaraje = (e: MapLayerMouseEvent) => {
+          if (m.queryRenderedFeatures(e.point, { layers: ["plazas-circulo"] }).length) return;
+          const g = garajesRef.current.get(String(e.features?.[0]?.properties.id));
+          if (!g) return;
+          abrirHoja(fichaGaraje(g, config.url), [g.lon_aprox, g.lat_aprox], g.id);
+        };
+        /** Muestra la ficha en la hoja inferior y centra el punto en la parte de arriba del mapa */
+        const abrirHoja = (html: string, centro: [number, number], garajeId: string | null = null) => {
+          setAviso("");
+          setHoja(html);
+          setHojaGaraje(garajeId);
+          const alto = m.getContainer().clientHeight;
+          m.easeTo({ center: centro, offset: [0, -alto * 0.22], duration: 400 });
+        };
+        m.on("click", (e) => {
+          // Tocar el mapa fuera de un punto cierra la hoja
+          const capas = ["plazas-circulo", "aparc-circulo", "garajes-punto"].filter((c) => m.getLayer(c));
+          if (!m.queryRenderedFeatures(e.point, { layers: capas }).length) setHoja(null);
+        });
         for (const [capas, accion] of [
           [["plazas-circulo", "plazas-letra"], abrirPlaza],
           [["aparc-circulo", "aparc-letra"], abrirAparcamiento],
+          [["garajes-punto", "garajes-icono"], abrirGaraje],
         ] as const) {
           for (const capa of capas) {
             m.on("click", capa, accion);
@@ -310,12 +452,14 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         aplicarFiltro(filtroRef.current);
         cargarPlazas();
         cargarAparcamientos();
+        cargarGarajes();
       });
       m.on("moveend", () => {
         clearTimeout(espera);
         espera = setTimeout(() => {
           cargarPlazas();
           cargarAparcamientos();
+          cargarGarajes();
         }, 300);
       });
     })();
@@ -329,7 +473,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       mapaRef.current?.remove();
       mapaRef.current = null;
     };
-  }, [cargarPlazas, cargarAparcamientos, pintar, aplicarFiltro]);
+  }, [cargarPlazas, cargarAparcamientos, cargarGarajes, pintar, aplicarFiltro, config.url]);
 
   function elegir(f: Filtro) {
     setFiltro(f);
@@ -345,6 +489,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     : filtro === "gratis" ? plural(conteo.gratis, "parking gratis", "parkings gratis")
     : filtro === "pago" ? plural(conteo.pago, "parking de pago", "parkings de pago")
     : filtro === "ora" ? plural(conteo.ora, "parquímetro", "parquímetros")
+    : filtro === "garajes" ? (numGarajes ? plural(numGarajes, "garaje en alquiler", "garajes en alquiler") : "Sin garajes en esta zona")
     : `${plural(vigentes, "plaza libre", "plazas libres")} · ${conteo.gratis + conteo.pago + conteo.nd} parkings`;
 
   return (
@@ -387,12 +532,27 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         </button>
       </div>
 
+      {hoja && (
+        <div className="ficha hoja" role="dialog" aria-label="Detalles" onClick={alPulsarFicha} onScrollCapture={alDeslizar}>
+          <button type="button" className="hoja-cerrar" onClick={() => setHoja(null)} aria-label="Cerrar">×</button>
+          <div className="hoja-asa" aria-hidden />
+          <div dangerouslySetInnerHTML={{ __html: hoja }} />
+          {hojaGaraje && <Denunciar key={hojaGaraje} tipo="garaje" objetoId={hojaGaraje} {...config} />}
+          {aviso === "cuenta" && (
+            <p className="hoja-aviso">
+              Para pedir una reserva necesitas una cuenta. <Link href="/cuenta">Entrar con Google o email →</Link>
+            </p>
+          )}
+        </div>
+      )}
+
       <div className={styles.leyendaParking}>
         <span><i style={{ background: COLOR.libre }} />Plaza libre (usuarios)</span>
         <span><i style={{ background: COLOR.gratis }} />Parking gratis</span>
         <span><i style={{ background: COLOR.pago }} />Parking de pago</span>
         <span><i style={{ background: COLOR.nd }} />Parking sin dato de precio</span>
         <span><i style={{ background: COLOR.ora }} />Parquímetro (ORA)</span>
+        <span><i style={{ background: COLOR.garaje }} />Garaje de particular</span>
       </div>
 
       <div className={`${styles.tarjeta} ${styles.proximo}`}>

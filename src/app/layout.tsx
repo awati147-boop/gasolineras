@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist } from "next/font/google";
-import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/icono";
+import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
 import Pestanas from "./Pestanas";
-import { IconoInfo, Logo } from "./Iconos";
+import AvisoInstalar from "./AvisoInstalar";
+import { IconoInfo, IconoPersona, Logo } from "./Iconos";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,14 +35,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Logo />
             <span>{NOMBRE_APP}</span>
           </Link>
+          <nav className="cabecera-acciones">
+          <Link href="/cuenta" className="cabecera-info" aria-label="Mi cuenta">
+            <IconoPersona />
+          </Link>
           <Link href="/acerca" className="cabecera-info" aria-label="Acerca de, fuentes y privacidad">
             <IconoInfo />
           </Link>
+          </nav>
         </header>
         {children}
         <footer className="pie">
-          <Link href="/acerca">Acerca de · Fuentes · Privacidad</Link>
+          <Link href="/acerca">Acerca de</Link> · <Link href="/condiciones">Condiciones</Link> ·{" "}
+          <Link href="/privacidad">Privacidad</Link> · <Link href="/aviso-legal">Aviso legal</Link>
         </footer>
+        <AvisoInstalar />
         <Pestanas />
       </body>
     </html>

@@ -6,9 +6,14 @@ export type ConfigSupabase = { url: string; clave: string };
 
 let cliente: SupabaseClient | null = null;
 
-/** Cliente de Supabase en el navegador (clave pública). Guarda la sesión anónima en este dispositivo. */
+/**
+ * Cliente de Supabase en el navegador (clave pública). Guarda la sesión en este dispositivo.
+ * flowType "pkce": al volver de Google o del enlace del email, el código de la URL se canjea solo por la sesión.
+ */
 export function supabaseNavegador({ url, clave }: ConfigSupabase) {
-  cliente ??= createClient(url, clave, { auth: { persistSession: true, autoRefreshToken: true } });
+  cliente ??= createClient(url, clave, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" },
+  });
   return cliente;
 }
 
