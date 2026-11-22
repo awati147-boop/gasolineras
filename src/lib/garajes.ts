@@ -12,7 +12,8 @@ export type Garaje = {
   altura_max: number | null;
   acceso: "mando" | "llave" | "codigo" | "libre" | null;
   enchufe: boolean;
-  foto: string | null;
+  foto: string | null; // portada (= fotos[0])
+  fotos: string[];
   lat_aprox: number;
   lon_aprox: number;
   activo: boolean;

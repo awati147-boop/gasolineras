@@ -33,7 +33,8 @@ export default function MisGarajes(config: ConfigSupabase) {
     const db = supabaseNavegador(config);
     const { error } = await db.from("garajes").delete().eq("id", g.id);
     if (error) return setError("No se ha podido borrar.");
-    if (g.foto) await db.storage.from("garajes").remove([g.foto]);
+    const rutas = g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [];
+    if (rutas.length) await db.storage.from("garajes").remove(rutas);
     cargar();
   }
 

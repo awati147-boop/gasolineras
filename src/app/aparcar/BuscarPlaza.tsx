@@ -91,6 +91,14 @@ function fichaAparcamiento(a: Aparcamiento) {
   );
 }
 
+/** Carrusel de fotos (se desliza con el dedo; el contador se actualiza al desplazarse) */
+function carrusel(fotos: string[], supabaseUrl: string) {
+  if (!fotos.length) return "";
+  const imgs = fotos.map((f, i) => `<img src="${urlFoto(supabaseUrl, f)}" alt="Foto ${i + 1}" loading="lazy">`).join("");
+  const contador = fotos.length > 1 ? `<span class="ficha-contador">1/${fotos.length}</span>` : "";
+  return `<div class="ficha-carrusel"><div class="ficha-fotos">${imgs}</div>${contador}</div>`;
+}
+
 /** Ficha HTML de un garaje de particular */
 function fichaGaraje(g: Garaje, supabaseUrl: string) {
   const datos = [
@@ -100,7 +108,7 @@ function fichaGaraje(g: Garaje, supabaseUrl: string) {
     g.enchufe && "⚡ Enchufe para coche eléctrico",
   ].filter(Boolean);
   return (
-    (g.foto ? `<img class="ficha-foto" src="${urlFoto(supabaseUrl, g.foto)}" alt="" loading="lazy">` : "") +
+    carrusel(g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [], supabaseUrl) +
     `<div class="ficha-cab"><span class="marca" style="background:${COLOR.garaje}">🏠</span>` +
     `<div><strong>${escapar(g.titulo)}</strong><small>${g.tipo === "cerrado" ? "Garaje cerrado" : "Plaza en garaje"} · de particular</small></div></div>` +
     `<div class="ficha-precio"><b>${escapar(textoPrecio(g))}</b></div>` +
@@ -224,7 +232,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const b = m.getBounds();
     const { data, error } = await supabaseNavegador(config)
       .from("garajes")
-      .select("id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, altura_max, acceso, enchufe, foto, lat_aprox, lon_aprox, activo, creado")
+      .select("id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, altura_max, acceso, enchufe, foto, fotos, lat_aprox, lon_aprox, activo, creado")
       .eq("activo", true)
       .gte("lat_aprox", b.getSouth()).lte("lat_aprox", b.getNorth())
       .gte("lon_aprox", b.getWest()).lte("lon_aprox", b.getEast())
@@ -395,6 +403,12 @@ export default function BuscarPlaza(config: ConfigSupabase) {
             .setLngLat([g.lon_aprox, g.lat_aprox])
             .setHTML(fichaGaraje(g, config.url))
             .addTo(m);
+          const tira = popup.getElement().querySelector<HTMLElement>(".ficha-fotos");
+          const cont = popup.getElement().querySelector<HTMLElement>(".ficha-contador");
+          tira?.addEventListener("scroll", () => {
+            const i = Math.round(tira.scrollLeft / tira.clientWidth) + 1;
+            if (cont) cont.textContent = `${i}/${tira.children.length}`;
+          });
           popup.getElement().querySelector("[data-solicitar]")?.addEventListener("click", () => {
             alert("Muy pronto podrás solicitar la reserva desde aquí.");
           });

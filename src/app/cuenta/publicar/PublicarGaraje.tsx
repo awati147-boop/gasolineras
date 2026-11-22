@@ -12,6 +12,8 @@ import styles from "../../page.module.css";
 import { IconoUbicacion } from "../../Iconos";
 
 type Punto = { lat: number; lon: number };
+type FotoLocal = { blob: Blob; vista: string };
+const MAX_FOTOS = 6;
 const CENTRO_INICIAL: Punto = { lat: 38.3452, lon: -0.481 }; // Alicante
 
 /** Convierte "1,50" o "1.5" en número; vacío -> null */
@@ -29,7 +31,7 @@ export default function PublicarGaraje(config: ConfigSupabase) {
     titulo: "", tipo: "plaza" as "plaza" | "cerrado", descripcion: "", direccion: "", indicaciones: "",
     hora: "", dia: "", mes: "", disponibilidad: "", altura: "", acceso: "mando", enchufe: false,
   });
-  const [foto, setFoto] = useState<{ blob: Blob; vista: string } | null>(null);
+  const [fotos, setFotos] = useState<FotoLocal[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const cambiar = (campo: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -43,17 +45,34 @@ export default function PublicarGaraje(config: ConfigSupabase) {
     });
   }, [config, router]);
 
-  async function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const archivo = e.target.files?.[0];
-    if (!archivo) return;
+  async function elegirFotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivos = Array.from(e.target.files ?? []);
+    e.target.value = ""; // permite volver a elegir las mismas
+    if (!archivos.length) return;
     setError("");
-    try {
-      const blob = await reducirFoto(archivo);
-      if (foto) URL.revokeObjectURL(foto.vista);
-      setFoto({ blob, vista: URL.createObjectURL(blob) });
-    } catch (err) {
-      setError((err as Error).message || "No se ha podido leer la foto.");
+    const huecos = MAX_FOTOS - fotos.length;
+    if (archivos.length > huecos) setError(`Puedes subir como máximo ${MAX_FOTOS} fotos.`);
+    const nuevas: FotoLocal[] = [];
+    for (const archivo of archivos.slice(0, Math.max(0, huecos))) {
+      try {
+        const blob = await reducirFoto(archivo);
+        nuevas.push({ blob, vista: URL.createObjectURL(blob) });
+      } catch {
+        setError("Alguna foto no se ha podido leer. Prueba con otra.");
+      }
     }
+    setFotos((x) => [...x, ...nuevas]);
+  }
+
+  function quitarFoto(i: number) {
+    setFotos((x) => {
+      URL.revokeObjectURL(x[i].vista);
+      return x.filter((_, j) => j !== i);
+    });
+  }
+
+  function hacerPortada(i: number) {
+    setFotos((x) => [x[i], ...x.filter((_, j) => j !== i)]);
   }
 
   async function publicar(e: React.FormEvent) {
@@ -70,12 +89,16 @@ export default function PublicarGaraje(config: ConfigSupabase) {
       const { data: u } = await db.auth.getUser();
       if (!u.user) throw new Error("Tu sesión ha caducado. Vuelve a entrar.");
 
-      // 1) Foto (opcional) en la carpeta del usuario
-      let rutaFoto: string | null = null;
-      if (foto) {
-        rutaFoto = `${u.user.id}/${crypto.randomUUID()}.jpg`;
-        const { error } = await db.storage.from("garajes").upload(rutaFoto, foto.blob, { contentType: "image/jpeg" });
-        if (error) throw new Error("No se ha podido subir la foto.");
+      // 1) Fotos (opcionales) en la carpeta del usuario, en orden (la primera es la portada)
+      const rutas: string[] = [];
+      for (const [i, foto] of fotos.entries()) {
+        const ruta = `${u.user.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await db.storage.from("garajes").upload(ruta, foto.blob, { contentType: "image/jpeg" });
+        if (error) {
+          if (rutas.length) await db.storage.from("garajes").remove(rutas); // no dejar fotos sueltas
+          throw new Error(`No se ha podido subir la foto ${i + 1}.`);
+        }
+        rutas.push(ruta);
       }
 
       // 2) Anuncio público (ubicación aproximada)
@@ -90,7 +113,8 @@ export default function PublicarGaraje(config: ConfigSupabase) {
           altura_max: numero(f.altura),
           acceso: f.acceso,
           enchufe: f.enchufe,
-          foto: rutaFoto,
+          foto: rutas[0] ?? null,
+          fotos: rutas,
           ...aproximar(punto.lat, punto.lon),
         })
         .select("id")
@@ -197,18 +221,30 @@ export default function PublicarGaraje(config: ConfigSupabase) {
         </label>
       </fieldset>
 
-      {/* ---------- 4. Foto ---------- */}
+      {/* ---------- 4. Fotos ---------- */}
       <fieldset className={styles.seccion}>
-        <legend><span>4</span> Foto</legend>
-        <label className={styles.subirFoto}>
-          {foto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={foto.vista} alt="Foto del garaje" />
-          ) : (
-            <span>📷<b>Añadir foto</b><small>Los anuncios con foto se alquilan mucho más</small></span>
+        <legend><span>4</span> Fotos <small className={styles.contadorFotos}>{fotos.length}/{MAX_FOTOS}</small></legend>
+        <p className={styles.zona}>Enseña la entrada, la plaza y el acceso. La primera es la portada.</p>
+        <div className={styles.rejillaFotos}>
+          {fotos.map((foto, i) => (
+            <figure key={foto.vista} className={styles.fotoMini}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={foto.vista} alt={`Foto ${i + 1}`} />
+              {i === 0 ? (
+                <span className={styles.etiquetaPortada}>Portada</span>
+              ) : (
+                <button type="button" className={styles.botonPortada} onClick={() => hacerPortada(i)}>★ Portada</button>
+              )}
+              <button type="button" className={styles.quitarFoto} onClick={() => quitarFoto(i)} aria-label={`Quitar foto ${i + 1}`}>×</button>
+            </figure>
+          ))}
+          {fotos.length < MAX_FOTOS && (
+            <label className={styles.subirFoto}>
+              <span>📷<b>{fotos.length ? "Añadir más" : "Añadir fotos"}</b><small>Puedes elegir varias a la vez</small></span>
+              <input type="file" accept="image/*" multiple onChange={elegirFotos} />
+            </label>
           )}
-          <input type="file" accept="image/*" onChange={elegirFoto} />
-        </label>
+        </div>
       </fieldset>
 
       {error && <p className={styles.error}>{error}</p>}

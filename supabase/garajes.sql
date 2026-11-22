@@ -132,3 +132,17 @@ create policy "garajes: cambiar en mi carpeta" on storage.objects for update to 
   using (bucket_id = 'garajes' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "garajes: borrar en mi carpeta" on storage.objects for delete to authenticated
   using (bucket_id = 'garajes' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- Varias fotos por garaje (hasta 6; la primera es la portada) ----------
+alter table garajes add column if not exists fotos text[] not null default '{}';
+alter table garajes drop constraint if exists garajes_max_fotos;
+alter table garajes add constraint garajes_max_fotos check (cardinality(fotos) <= 6);
+-- Los garajes antiguos con una sola foto pasan a tenerla como primera de la lista
+update garajes set fotos = array[foto] where foto is not null and cardinality(fotos) = 0;
+grant select (fotos) on garajes to anon, authenticated;
+grant insert (fotos), update (fotos) on garajes to authenticated;
+-- mis_garajes() devuelve "setof garajes": se recrea para incluir la columna nueva
+create or replace function mis_garajes() returns setof garajes
+language sql stable security definer set search_path = public as $$
+  select * from garajes where propietario = auth.uid() order by creado desc
+$$;
