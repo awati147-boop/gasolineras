@@ -285,3 +285,26 @@
 .estadoPendiente { color: var(--ambar); font-size: 0.82rem; font-weight: 700; }
 .estadoAceptada { color: var(--marca); font-size: 0.82rem; font-weight: 700; }
 .estadoRechazada { color: var(--rojo); font-size: 0.82rem; font-weight: 700; }
+/* Mis reservas, acciones y chat */
+.insignia { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--rojo); color: #fff; font-size: 0.72rem; font-weight: 800; }
+.enlaceReserva { text-decoration: none; color: inherit; }
+.enlaceReserva:hover { border-color: color-mix(in srgb, var(--marca) 35%, var(--borde)); }
+.flecha { margin-left: auto; font-size: 1.6rem; color: var(--sub); }
+.accionesReserva { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin: 0 0 14px; }
+.accionesReserva button { padding: 13px; }
+.aviso { background: color-mix(in srgb, var(--ambar) 14%, transparent); border-radius: var(--radio-s); padding: 10px 12px; font-size: 0.92rem; }
+.bloqueDireccion { padding: 14px 16px; margin-bottom: 14px; }
+.bloqueDireccion p { margin: 4px 0; }
+.bloqueDireccion .boton { margin-top: 10px; text-decoration: none; width: 100%; }
+.chat { padding: 14px 14px 10px; margin-bottom: 14px; }
+.mensajes { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; min-height: 120px; overflow-y: auto; padding: 4px 2px 8px; }
+.mioMsg, .suyoMsg { max-width: 80%; padding: 8px 12px; border-radius: 16px; line-height: 1.35; overflow-wrap: anywhere; }
+.mioMsg { align-self: flex-end; background: var(--marca); color: #fff; border-bottom-right-radius: 4px; }
+.suyoMsg { align-self: flex-start; background: var(--superficie-2); border-bottom-left-radius: 4px; }
+.mioMsg p, .suyoMsg p { margin: 0; white-space: pre-wrap; }
+.mioMsg time, .suyoMsg time { display: block; font-size: 0.68rem; opacity: 0.7; margin-top: 2px; text-align: right; }
+.escribir { display: flex; gap: 8px; margin-top: 6px; }
+.escribir input { flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 11px 14px; border-radius: 999px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); }
+.escribir input:focus { outline: 0; border-color: var(--marca); }
+.escribir .boton { border-radius: 50%; width: 46px; height: 46px; padding: 0; font-size: 1.1rem; }
+.enlaceCancelar { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--rojo); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }

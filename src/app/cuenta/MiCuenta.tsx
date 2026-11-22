@@ -7,6 +7,7 @@ import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador"
 import styles from "../page.module.css";
 import { IconoCheck, IconoInfo } from "../Iconos";
 import MisGarajes from "./MisGarajes";
+import MisReservas from "./MisReservas";
 
 /** Usuario con cuenta "de verdad" (Google o email), no el anónimo de "Me voy" */
 const tieneCuenta = (u: User | null) => Boolean(u && !u.is_anonymous && u.email);
@@ -92,6 +93,7 @@ export default function MiCuenta(config: ConfigSupabase) {
         <p className={styles.zona}>{usuario!.email}</p>
 
         {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
+        <MisReservas {...config} />
         <MisGarajes {...config} />
 
         <div className={styles.acciones}>
