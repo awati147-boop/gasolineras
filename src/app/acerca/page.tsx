@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { NOMBRE_APP } from "@/lib/icono";
+import { NOMBRE_APP } from "@/lib/app";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: `Acerca de · ${NOMBRE_APP}` };
