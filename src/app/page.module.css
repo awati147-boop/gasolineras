@@ -269,3 +269,19 @@
 .etiquetaPortada, .botonPortada { position: absolute; left: 6px; bottom: 6px; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
 .etiquetaPortada { background: var(--marca); color: #fff; }
 .botonPortada { border: 0; background: rgba(0, 0, 0, 0.6); color: #fff; cursor: pointer; }
+
+/* ===== Reservas ===== */
+.volver { display: inline-block; margin: 4px 0 12px; color: var(--sub); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.resumenGaraje { display: flex; gap: 12px; padding: 12px; margin-bottom: 14px; align-items: center; }
+.resumenGaraje img { width: 92px; height: 92px; border-radius: 12px; object-fit: cover; flex: none; }
+.resumenGaraje > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.precioResumen { color: var(--marca); font-size: 1.05rem; }
+.totalReserva {
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 10px;
+  padding: 14px 16px; border-radius: var(--radio); background: var(--marca-suave);
+}
+.totalReserva b { font-size: 1.6rem; color: var(--marca); font-variant-numeric: tabular-nums; }
+.totalReserva small { grid-column: 1 / -1; color: var(--sub); }
+.estadoPendiente { color: var(--ambar); font-size: 0.82rem; font-weight: 700; }
+.estadoAceptada { color: var(--marca); font-size: 0.82rem; font-weight: 700; }
+.estadoRechazada { color: var(--rojo); font-size: 0.82rem; font-weight: 700; }

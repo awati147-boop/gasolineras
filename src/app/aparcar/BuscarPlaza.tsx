@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
@@ -138,6 +139,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   // Ficha abierta en la hoja inferior (HTML ya escapado) y aviso dentro de ella
   const [hoja, setHoja] = useState<string | null>(null);
   const [aviso, setAviso] = useState("");
+  const router = useRouter();
 
   /** Clics dentro de la ficha: botón "Solicitar reserva" */
   async function alPulsarFicha(e: React.MouseEvent<HTMLDivElement>) {
@@ -147,7 +149,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     if (!data.user || data.user.is_anonymous) {
       setAviso("cuenta");
     } else {
-      setAviso("pronto");
+      router.push(`/reservar/${boton.getAttribute("data-solicitar")}`);
     }
   }
 
@@ -535,11 +537,6 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           {aviso === "cuenta" && (
             <p className="hoja-aviso">
               Para pedir una reserva necesitas una cuenta. <Link href="/cuenta">Entrar con Google o email →</Link>
-            </p>
-          )}
-          {aviso === "pronto" && (
-            <p className="hoja-aviso">
-              🚧 Las reservas llegan muy pronto: podrás elegir fechas, escribir al dueño y recibir la dirección al aceptar.
             </p>
           )}
         </div>
