@@ -59,8 +59,6 @@ function fondoEtiqueta(color: string) {
 export default function Explorador() {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaML | null>(null);
-  // Ficha de la gasolinera tocada, en la hoja inferior (HTML ya escapado)
-  const [hoja, setHoja] = useState<string | null>(null);
   const peticion = useRef<AbortController | null>(null);
   const [carburante, setCarburante] = useState(CARBURANTES[0].id);
   const carburanteRef = useRef(carburante);
@@ -193,7 +191,9 @@ export default function Explorador() {
           const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
           const d = distintivo(g.rotulo);
           const nombreCarb = CARBURANTES.find((x) => x.id === carburanteRef.current)?.nombre ?? "";
-          setHoja(
+          new maplibregl.Popup({ offset: 12, maxWidth: "300px", className: "ficha" })
+            .setLngLat([lon, lat])
+            .setHTML(
               `<div class="ficha-cab">
                  <span class="marca" style="background:${d.color}">${escapar(d.texto)}</span>
                  <div><strong>${escapar(g.rotulo)}</strong><small>${escapar(nombrePropio(g.localidad))}</small></div>
@@ -202,15 +202,9 @@ export default function Explorador() {
                <p>📍 ${escapar(nombrePropio(g.direccion))}</p>
                <p>🕒 ${escapar(g.horario)}</p>
                <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
-          );
-          // Centrar la gasolinera en la parte de arriba, para que la ficha no la tape
-          const alto = m.getContainer().clientHeight;
-          m.easeTo({ center: [lon, lat], offset: [0, -alto * 0.22], duration: 400 });
+            )
+            .addTo(m);
         };
-        // Tocar el mapa fuera de una gasolinera cierra la ficha
-        m.on("click", (e) => {
-          if (!m.queryRenderedFeatures(e.point, { layers: ["etiquetas", "puntos"] }).length) setHoja(null);
-        });
         for (const capa of ["etiquetas", "puntos"]) {
           m.on("click", capa, abrirFicha);
           m.on("mouseenter", capa, () => (m.getCanvas().style.cursor = "pointer"));
@@ -334,13 +328,6 @@ export default function Explorador() {
 
       <div className={styles.rejilla}>
         <div ref={contenedor} className={styles.mapa} />
-        {hoja && (
-          <div className="ficha hoja" role="dialog" aria-label="Detalles de la gasolinera">
-            <button type="button" className="hoja-cerrar" onClick={() => setHoja(null)} aria-label="Cerrar">×</button>
-            <div className="hoja-asa" aria-hidden />
-            <div dangerouslySetInnerHTML={{ __html: hoja }} />
-          </div>
-        )}
 
         <section className={styles.panel}>
           <h2 className={styles.subtitulo}>
