@@ -122,13 +122,17 @@ async function barcelona(marca: string): Promise<Fila[]> {
   const [cab, ...datos] = leerCsv(texto, ",");
   const c = (n: string) => cab.indexOf(n);
   const filas: Fila[] = [];
+  const vistos = new Map<string, number>(); // el fichero repite algunos ID_TRAM
   for (const f of datos) {
     const t = BCN_TIPOS[f[c("TIPUS_TRAM")]];
     const lat = Number(f[c("LATITUD_I")]), lon = Number(f[c("LONGITUD_I")]);
     if (!t || !lat || !lon) continue;
     const calle = (f[c("ADREÇA")] ?? "").replace(/\s*,\s*C\s*$/i, "").trim().toLowerCase().replace(/(^|\s)\p{L}/gu, (s) => s.toUpperCase());
+    const idTram = f[c("ID_TRAM")];
+    const n = vistos.get(idTram) ?? 0;
+    vistos.set(idTram, n + 1);
     filas.push({
-      id: `bcn:${f[c("ID_TRAM")]}`, ciudad: "Barcelona", tipo: t[0], color: t[1], calle: calle || null,
+      id: n ? `bcn:${idTram}-${n}` : `bcn:${idTram}`, ciudad: "Barcelona", tipo: t[0], color: t[1], calle: calle || null,
       plazas: entero(f[c("PLACES")]), lat, lon,
       lat2: Number(f[c("LATITUD_F")]) || null, lon2: Number(f[c("LONGITUD_F")]) || null,
       fuente: "Ajuntament de Barcelona, B:SM (CC BY 4.0)", actualizado: marca,
