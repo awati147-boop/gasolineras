@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Map as MapaML, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
+import type { Map as MapaML, Marker, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
 import { ORA_ALICANTE, enAlicante } from "@/lib/ora";
 import { nombrePropio } from "@/lib/texto";
 import styles from "../page.module.css";
-import { IconoInfo, IconoUbicacion } from "../Iconos";
+import { IconoBuscar, IconoInfo, IconoUbicacion } from "../Iconos";
 import Denunciar from "../Denunciar";
 import { ACCESOS, textoPrecio, urlFoto, type Garaje } from "@/lib/garajes";
 
@@ -24,6 +24,7 @@ type Zona = {
   id: string; ciudad: string; tipo: "rotacion" | "mixta" | "residentes" | "larga" | "libre"; color: string;
   calle: string | null; plazas: number | null; lat: number; lon: number; lat2: number | null; lon2: number | null; fuente: string;
 };
+type Lugar = { nombre: string; detalle: string; lat: number; lon: number };
 type Filtro = "todo" | "libres" | "garajes" | "gratis" | "pago" | "ora";
 
 const ZONA_INICIAL: [number, number, number, number] = [-0.515, 38.335, -0.47, 38.36]; // centro de Alicante
@@ -62,6 +63,25 @@ const TIPO_TEXTO: Record<string, string> = {
   azotea: "En azotea",
   calle: "En la calle",
 };
+
+const RADIO_DESTINO_M = 800;
+type Cerca = {
+  parkings: { a: Aparcamiento; m: number }[];
+  libres: number;
+  zona: Zona | null;
+  parquimetros: number;
+};
+
+/** Distancia en metros entre dos puntos */
+function metros(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+  const r = Math.PI / 180;
+  const x = (b.lon - a.lon) * r * Math.cos(((a.lat + b.lat) / 2) * r);
+  const y = (b.lat - a.lat) * r;
+  return Math.sqrt(x * x + y * y) * 6_371_000;
+}
+/** Minutos andando (las calles no van en línea recta: +30 %, a 80 m/min) */
+const minAndando = (m: number) => Math.max(1, Math.round((m * 1.3) / 80));
+const urlRuta = (lat: number, lon: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
 
 const minutosDesde = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
 const textoMinutos = (m: number) => (m === 0 ? "ahora" : `${m} min`);
@@ -176,6 +196,13 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   const [hoja, setHoja] = useState<string | null>(null);
   const [hojaGaraje, setHojaGaraje] = useState<string | null>(null); // id del garaje mostrado (para denunciar)
   const [aviso, setAviso] = useState("");
+  const [texto, setTexto] = useState("");
+  const [avisoBusqueda, setAvisoBusqueda] = useState("");
+  const [sugerencias, setSugerencias] = useState<Lugar[]>([]);
+  const [destino, setDestino] = useState<Lugar | null>(null);
+  const marcadorRef = useRef<Marker | null>(null);
+  const destinoRef = useRef<Lugar | null>(null);
+  const [cerca, setCerca] = useState<Cerca | null>(null);
   const router = useRouter();
 
   /** Clics dentro de la ficha: botón "Solicitar reserva" */
@@ -238,6 +265,34 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     });
   }, []);
 
+  /** Lo que hay cerca del destino buscado: parkings, plazas libres y zona de la calle (tras cada carga) */
+  const calcularCerca = useCallback(() => {
+    const d = destinoRef.current;
+    if (!d) return setCerca(null);
+    const parkings = [...aparcRef.current.values()]
+      .filter((a) => a.clase === "parking" && a.acceso !== "clientes")
+      .map((a) => ({ a, m: metros(d, a) }))
+      .filter((x) => x.m <= RADIO_DESTINO_M)
+      .sort((x, y) => x.m - y.m)
+      .slice(0, 5);
+    const ahora = Date.now();
+    const libres = plazasRef.current.filter((p) => new Date(p.expira).getTime() > ahora && metros(d, p) <= 500).length;
+    let zona: Zona | null = null;
+    let zonaM = 80;
+    for (const z of zonasRef.current.values()) {
+      const puntos = z.lat2 != null && z.lon2 != null
+        ? [{ lat: z.lat, lon: z.lon }, { lat: z.lat2, lon: z.lon2 }, { lat: (z.lat + z.lat2) / 2, lon: (z.lon + z.lon2) / 2 }]
+        : [z];
+      const m = Math.min(...puntos.map((p) => metros(d, p)));
+      if (m < zonaM) {
+        zona = z;
+        zonaM = m;
+      }
+    }
+    const parquimetros = [...aparcRef.current.values()].filter((a) => a.clase === "parquimetro" && metros(d, a) <= 150).length;
+    setCerca({ parkings, libres, zona, parquimetros });
+  }, []);
+
   /** Plazas libres de la zona visible (cada 15 s) */
   const cargarPlazas = useCallback(async () => {
     const m = mapaRef.current;
@@ -255,7 +310,8 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     plazasRef.current = data;
     setActualizado(new Date());
     pintar();
-  }, [config, pintar]);
+    calcularCerca();
+  }, [config, pintar, calcularCerca]);
 
   /** Parkings y parquímetros de la zona visible (al mover el mapa) */
   const cargarAparcamientos = useCallback(async () => {
@@ -265,6 +321,8 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     if (m.getZoom() < ZOOM_MINIMO_PARKINGS) {
       setLejos(true);
       setConteo({ gratis: 0, pago: 0, nd: 0, ora: 0 });
+      aparcRef.current = new Map();
+      calcularCerca();
       return fuente?.setData({ type: "FeatureCollection", features: [] });
     }
     setLejos(false);
@@ -281,6 +339,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const c = { gratis: 0, pago: 0, nd: 0, ora: 0 };
     lista.forEach((a) => c[categoria(a)]++);
     setConteo(c);
+    calcularCerca();
     fuente?.setData({
       type: "FeatureCollection",
       features: lista.map((a) => ({
@@ -289,7 +348,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         properties: { id: a.id, cat: categoria(a), letra: a.clase === "parquimetro" ? "€" : "P" },
       })),
     });
-  }, [config]);
+  }, [config, calcularCerca]);
 
   /** Zonas reguladas de la calle en la zona visible (solo con zoom cercano: son muchas) */
   const cargarZonas = useCallback(async () => {
@@ -298,6 +357,8 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const fuente = m.getSource("zonas") as GeoJSONSource | undefined;
     if (m.getZoom() < ZOOM_MINIMO_ZONAS) {
       setNumZonas(0);
+      zonasRef.current = new Map();
+      calcularCerca();
       return fuente?.setData({ type: "FeatureCollection", features: [] });
     }
     const b = m.getBounds();
@@ -311,6 +372,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const lista = data as Zona[];
     zonasRef.current = new Map(lista.map((z) => [z.id, z]));
     setNumZonas(lista.filter((z) => z.tipo !== "libre").length);
+    calcularCerca();
     fuente?.setData({
       type: "FeatureCollection",
       features: lista.map((z) => ({
@@ -321,7 +383,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         properties: { id: z.id, color: COLOR_CALLE[z.color] ?? COLOR.ora },
       })),
     });
-  }, [config]);
+  }, [config, calcularCerca]);
 
   /** Garajes de particulares activos en la zona visible */
   const cargarGarajes = useCallback(async () => {
@@ -598,8 +660,118 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     : filtro === "garajes" ? (numGarajes ? plural(numGarajes, "garaje en alquiler", "garajes en alquiler") : "Sin garajes en esta zona")
     : `${plural(vigentes, "plaza libre", "plazas libres")} · ${conteo.gratis + conteo.pago + conteo.nd} parkings`;
 
+  // Sugerencias mientras se escribe (con una pequeña espera para no buscar en cada letra)
+  useEffect(() => {
+    const q = texto.trim();
+    if (q.length < 3 || q === destino?.nombre) return;
+    const control = new AbortController();
+    const espera = setTimeout(async () => {
+      const c = mapaRef.current?.getCenter();
+      const cerca = c ? `&lat=${c.lat.toFixed(1)}&lon=${c.lng.toFixed(1)}` : "";
+      try {
+        const res = await fetch(`/api/lugares?q=${encodeURIComponent(q)}${cerca}`, { signal: control.signal });
+        const { lugares } = (await res.json()) as { lugares?: Lugar[] };
+        setSugerencias(lugares ?? []);
+      } catch {
+        /* sin sugerencias: Enter sigue buscando la ciudad */
+      }
+    }, 300);
+    return () => {
+      clearTimeout(espera);
+      control.abort();
+    };
+  }, [texto, destino]);
+
+  /** Marca el destino en el mapa y se acerca (los datos se recargan al terminar el movimiento) */
+  async function elegirLugar(l: Lugar) {
+    destinoRef.current = l;
+    setDestino(l);
+    setTexto(l.nombre);
+    setSugerencias([]);
+    setAvisoBusqueda("");
+    setHoja(null);
+    const m = mapaRef.current;
+    if (!m) return;
+    const maplibregl = await import("maplibre-gl");
+    marcadorRef.current?.remove();
+    marcadorRef.current = new maplibregl.Marker({ color: "#dc2626" }).setLngLat([l.lon, l.lat]).addTo(m);
+    m.flyTo({ center: [l.lon, l.lat], zoom: 16 });
+  }
+
+  /** Abre la ficha de un parking de la lista del destino */
+  function verParking(a: Aparcamiento) {
+    setHoja(fichaAparcamiento(a));
+    setHojaGaraje(null);
+    mapaRef.current?.easeTo({ center: [a.lon, a.lat], duration: 400 });
+  }
+
+  function quitarDestino() {
+    marcadorRef.current?.remove();
+    marcadorRef.current = null;
+    destinoRef.current = null;
+    setDestino(null);
+    setCerca(null);
+    setTexto("");
+  }
+
+  /** Enter: el primer lugar sugerido; si no hay, la ciudad o código postal */
+  async function buscar(e: React.FormEvent) {
+    e.preventDefault();
+    const q = texto.trim();
+    if (!q) return;
+    if (sugerencias[0] && q.length >= 3 && q !== destino?.nombre) return elegirLugar(sugerencias[0]);
+    setAvisoBusqueda("");
+    try {
+      const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`);
+      const { zona } = (await res.json()) as { zona: [number, number, number, number] | null };
+      if (!zona) return setAvisoBusqueda(`No encontramos «${q}».`);
+      mapaRef.current?.fitBounds(zona, { padding: 40, maxZoom: 15 });
+    } catch {
+      setAvisoBusqueda("No se ha podido buscar. Inténtalo más tarde.");
+    }
+  }
+
   return (
     <>
+      <form className={styles.buscador} onSubmit={buscar} role="search">
+        <label className={styles.cajaIcono}>
+          <IconoBuscar tam={20} />
+          <input
+            type="search"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="¿A dónde vas? Dirección, lugar o ciudad"
+            aria-label="¿A dónde vas?"
+            autoComplete="off"
+            className={styles.caja}
+            enterKeyHint="search"
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.botonSec}
+          onClick={() => geolocalizar.current?.trigger()}
+          title="Cerca de mí"
+          aria-label="Cerca de mí"
+        >
+          <IconoUbicacion tam={20} />
+          <span className={styles.ocultarMovil}>Cerca de mí</span>
+        </button>
+      </form>
+      {sugerencias.length > 0 && texto.trim().length >= 3 && texto !== destino?.nombre && (
+        <ul className={styles.sugerencias} aria-label="Sugerencias">
+          {sugerencias.map((l) => (
+            <li key={`${l.lat},${l.lon}`}>
+              <button type="button" onClick={() => elegirLugar(l)}>
+                <b>{l.nombre}</b>
+                {l.detalle && <small>{l.detalle}</small>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {avisoBusqueda && <p className={styles.error}>{avisoBusqueda}</p>}
+
       <nav className={styles.chips} aria-label="Qué mostrar">
         {FILTROS.map((f) => (
           <button
@@ -628,14 +800,6 @@ export default function BuscarPlaza(config: ConfigSupabase) {
             </span>
           )}
         </div>
-
-        <button
-          type="button"
-          className={`${styles.boton} ${styles.botonMapa}`}
-          onClick={() => geolocalizar.current?.trigger()}
-        >
-          <IconoUbicacion tam={18} /> Cerca de mí
-        </button>
       </div>
 
       {hoja && (
@@ -650,6 +814,71 @@ export default function BuscarPlaza(config: ConfigSupabase) {
             </p>
           )}
         </div>
+      )}
+
+      {destino && cerca && (
+    <section className={`${styles.tarjeta} ${styles.destino}`} aria-label="Aparcar cerca de tu destino">
+      <header>
+        <div>
+          <strong>📍 {destino.nombre}</strong>
+          {destino.detalle && <small>{destino.detalle}</small>}
+        </div>
+        <button type="button" onClick={quitarDestino} aria-label="Quitar destino">×</button>
+      </header>
+
+      {cerca.zona ? (
+        <p className={styles.destinoZona}>
+          <span style={{ background: COLOR_CALLE[cerca.zona.color] ?? COLOR.ora }} />
+          {cerca.zona.tipo === "libre"
+            ? "Tu destino está en zona libre: aparcar en la calle es gratis."
+            : `Tu destino está en zona ${cerca.zona.color} (${TIPO_ZONA[cerca.zona.tipo].nombre.toLowerCase()}). ${TIPO_ZONA[cerca.zona.tipo].texto}`}
+        </p>
+      ) : cerca.parquimetros > 0 ? (
+        <p className={styles.destinoZona}>
+          <span style={{ background: COLOR.ora }} />
+          Hay parquímetros junto a tu destino: la calle es de pago (zona regulada).
+        </p>
+      ) : null}
+
+      {cerca.libres > 0 && (
+        <p className={styles.destinoZona}>
+          <span style={{ background: COLOR.libre }} />
+          {cerca.libres === 1 ? "1 plaza libre" : `${cerca.libres} plazas libres`} a menos de 500 m (avisos de otros conductores).
+        </p>
+      )}
+
+      {lejos ? (
+        <p className={styles.sub}>Acerca el mapa para ver los parkings.</p>
+      ) : cerca.parkings.length ? (
+        <ul>
+          {cerca.parkings.map(({ a, m }) => {
+            const cat = categoria(a);
+            return (
+              <li key={a.id}>
+                <button type="button" className={styles.destinoItem} onClick={() => verParking(a)}>
+                  <span className={styles.destinoMarca} style={{ background: COLOR[cat] }}>P</span>
+                  <span>
+                    <b>{a.nombre ? nombrePropio(a.nombre) : "Aparcamiento"}</b>
+                    <small>
+                      🚶 {minAndando(m)} min ·{" "}
+                      {cat === "pago" ? "De pago" : cat === "gratis" ? "Gratis" : "Precio sin confirmar"}
+                      {a.plazas ? ` · ${a.plazas} plazas` : ""}
+                    </small>
+                  </span>
+                </button>
+                <a className={styles.destinoIr} href={urlRuta(a.lat, a.lon)} target="_blank" rel="noopener">
+                  Llévame
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className={styles.sub}>
+          No conocemos parkings a menos de {RADIO_DESTINO_M} m. Mira en el mapa si hay plazas libres o zona regulada.
+        </p>
+      )}
+    </section>
       )}
 
       <div className={styles.leyendaParking}>

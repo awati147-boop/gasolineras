@@ -29,6 +29,10 @@ export default function Privacidad() {
           vincularlo a tu identidad.
         </li>
         <li>
+          <b>Búsquedas:</b> lo que escribes en el buscador («¿A dónde vas?») se usa solo para encontrar ese lugar en el
+          mapa. No se guarda ni se asocia a ti.
+        </li>
+        <li>
           <b>Cuenta</b> (solo si publicas o reservas un garaje): email, nombre y foto de perfil de Google si entras con
           Google. Sirven para identificarte y gestionar tus anuncios y reservas.
         </li>
