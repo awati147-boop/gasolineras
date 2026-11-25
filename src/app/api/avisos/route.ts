@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: "No se han podido leer los dispositivos" }, { status: 502 });
 
   // Solo rutas internas como destino del clic
-  const enlace = p.enlace?.startsWith("/") ? p.enlace : "/cuenta";
+  // ("//otra-web.com" también empieza por "/" pero llevaría fuera: no se acepta)
+  const enlace = p.enlace && /^\/(?![/\\])/.test(p.enlace) ? p.enlace : "/cuenta";
   const datos = { titulo: p.titulo, cuerpo: p.cuerpo ?? "", enlace, etiqueta: p.etiqueta ?? "aviso" };
 
   let enviados = 0;

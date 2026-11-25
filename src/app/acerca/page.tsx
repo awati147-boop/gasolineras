@@ -51,7 +51,7 @@ export default function Acerca() {
         <li>No usamos cookies de publicidad ni de seguimiento.</li>
       </ul>
 
-      <h2 className={styles.subtitulo}>Instalar en el móvil</h2>
+      <h2 className={styles.subtitulo} id="instalar">Instalar en el móvil</h2>
       <ul>
         <li><strong>Android (Chrome):</strong> menú ⋮ → «Instalar aplicación» o «Añadir a pantalla de inicio».</li>
         <li><strong>iPhone (Safari):</strong> botón Compartir → «Añadir a pantalla de inicio».</li>

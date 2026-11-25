@@ -14,6 +14,7 @@ import ActivarAvisos from "./ActivarAvisos";
 const tieneCuenta = (u: User | null) => Boolean(u && !u.is_anonymous && u.email);
 
 export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid: string }) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [usuario, setUsuario] = useState<User | null>(null);
   const [cargando, setCargando] = useState(true);
   const [email, setEmail] = useState("");
@@ -24,12 +25,9 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
   const [guardado] = useState(() => typeof window !== "undefined" && window.location.search.includes("guardado=1"));
 
   useEffect(() => {
-    const db = supabaseNavegador(config);
-    // Si venimos de Google o del enlace del email, el cliente canjea el código de la URL automáticamente
-    db.auth.getUser().then(({ data }) => {
-      setUsuario(data.user);
-      setCargando(false);
-    });
+    // Si venimos de Google o del enlace del email, el cliente canjea el código de la URL automáticamente y después
+    // avisa aquí (INITIAL_SESSION / SIGNED_IN). No llamamos también a getUser(): competía con ese canje (el cliente
+    // hace las operaciones de sesión de una en una) y a veces se veía "sin cuenta" o se quedaba cargando.
     const { data: sub } = db.auth.onAuthStateChange((_evento, sesion) => {
       setUsuario(sesion?.user ?? null);
       setCargando(false);
@@ -38,14 +36,27 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
       }
     });
     return () => sub.subscription.unsubscribe();
-  }, [config]);
+  }, [db]);
+
+  // Accesos directos del menú (/cuenta#reservas, #garajes, #avisos): las secciones aparecen al cargar la sesión
+  // y crecen al llegar sus datos, así que se baja hasta ellas una vez ahora y otra cuando ya están rellenas
+  useEffect(() => {
+    if (cargando || !window.location.hash) return;
+    const ir = () => document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const t1 = setTimeout(ir, 50);
+    const t2 = setTimeout(ir, 900);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [cargando]);
 
   const volverA = () => `${window.location.origin}/cuenta`;
 
   async function conGoogle() {
     setError("");
     setOcupado(true);
-    const { error } = await supabaseNavegador(config).auth.signInWithOAuth({
+    const { error } = await db.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: volverA() },
     });
@@ -59,7 +70,7 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
     e.preventDefault();
     setError("");
     setOcupado(true);
-    const { error } = await supabaseNavegador(config).auth.signInWithOtp({
+    const { error } = await db.auth.signInWithOtp({
       email: email.trim(),
       options: { emailRedirectTo: volverA(), shouldCreateUser: true },
     });
@@ -74,7 +85,19 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
   }
 
   async function salir() {
-    await supabaseNavegador(config).auth.signOut();
+    // Antes de cerrar sesión, este dispositivo deja de recibir los avisos de esta cuenta
+    // (si no, en un móvil compartido seguirían llegando los mensajes de la cuenta anterior)
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration("/sw.js");
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) {
+        await db.from("push_suscripciones").delete().eq("endpoint", sub.endpoint);
+        await sub.unsubscribe();
+      }
+    } catch {
+      /* sin avisos en este navegador: nada que quitar */
+    }
+    await db.auth.signOut();
     setUsuario(null);
     setEnviado(false);
   }
@@ -96,9 +119,9 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
 
         {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
         {guardado && <p className={styles.exito}>✅ Cambios guardados.</p>}
-        <MisReservas {...config} />
-        {vapid && <ActivarAvisos {...config} vapid={vapid} />}
-        <MisGarajes {...config} />
+        <div id="reservas" className={styles.ancla}><MisReservas {...config} /></div>
+        {vapid && <div id="avisos" className={styles.ancla}><ActivarAvisos {...config} vapid={vapid} /></div>}
+        <div id="garajes" className={styles.ancla}><MisGarajes {...config} /></div>
 
         <div className={styles.acciones}>
           <button className={styles.botonSec} onClick={salir}>Cerrar sesión</button>

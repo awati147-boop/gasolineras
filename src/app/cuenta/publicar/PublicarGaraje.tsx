@@ -24,6 +24,7 @@ const numero = (v: string) => {
 };
 
 export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase & { editarId?: string }) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const router = useRouter();
   const [comprobando, setComprobando] = useState(true);
   const [punto, setPunto] = useState<Punto>(CENTRO_INICIAL);
@@ -43,7 +44,6 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
 
   // Solo usuarios con cuenta
   useEffect(() => {
-    const db = supabaseNavegador(config);
     (async () => {
       const { data } = await db.auth.getUser();
       if (!data.user || data.user.is_anonymous) return router.replace("/cuenta");
@@ -68,7 +68,7 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
       }
       setComprobando(false);
     })();
-  }, [config, router, editarId]);
+  }, [db, router, editarId, config.url]);
 
   async function elegirFotos(e: React.ChangeEvent<HTMLInputElement>) {
     const archivos = Array.from(e.target.files ?? []);
@@ -109,7 +109,6 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
     if (!precio_hora && !precio_dia && !precio_mes) return setError("Indica al menos un precio (por hora, día o mes).");
 
     setEnviando(true);
-    const db = supabaseNavegador(config);
     try {
       const { data: u } = await db.auth.getUser();
       if (!u.user) throw new Error("Tu sesión ha caducado. Vuelve a entrar.");

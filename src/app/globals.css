@@ -222,3 +222,39 @@ button.ficha-ir { width: 100%; border: 0; font: inherit; font-weight: 700; curso
 .denuncia-botones button[type="submit"] { background: var(--rojo); border-color: var(--rojo); color: #fff; }
 .denuncia-error { color: var(--rojo); margin: 0; }
 .denuncia-hecha { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--marca-suave); font-size: 0.88rem; color: var(--texto) !important; }
+
+/* ===== Menú lateral ===== */
+.cabecera-izquierda { display: flex; align-items: center; gap: 4px; margin-left: -8px; }
+.menu-fondo {
+  position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.4);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.menu-fondo.visible { opacity: 1; pointer-events: auto; }
+.menu-lateral {
+  position: fixed; z-index: 41; top: 0; bottom: 0; left: 0; width: min(310px, 86vw);
+  display: flex; flex-direction: column; overflow-y: auto;
+  padding: calc(14px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
+  background: var(--superficie); box-shadow: var(--sombra-fuerte);
+  transform: translateX(-105%); transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.menu-lateral.abierto { transform: none; }
+.menu-cabecera { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 12px; }
+.menu-cerrar {
+  border: 0; background: var(--superficie-2); color: var(--texto); width: 34px; height: 34px;
+  border-radius: 50%; font-size: 1.3rem; line-height: 1; cursor: pointer;
+}
+.menu-seccion { padding: 8px 0; border-top: 1px solid var(--borde); }
+.menu-seccion:first-child { border-top: 0; }
+.menu-seccion h2 {
+  margin: 6px 10px 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sub);
+}
+.menu-enlace {
+  display: flex; align-items: center; gap: 12px; padding: 10px 10px; border-radius: 12px;
+  color: var(--texto); text-decoration: none; font-weight: 550; font-size: 0.98rem;
+}
+.menu-enlace span { width: 24px; text-align: center; font-size: 1.1rem; }
+.menu-enlace:hover { background: var(--superficie-2); }
+.menu-enlace.activo { background: var(--marca-suave); color: var(--marca-fuerte); }
+.menu-legal { margin: auto 10px 0; padding-top: 14px; font-size: 0.8rem; color: var(--sub); }
+.menu-legal a { color: var(--sub); }

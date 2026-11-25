@@ -8,14 +8,15 @@ import styles from "../page.module.css";
 
 /** Lista de los garajes del usuario, con pausar/activar y borrar */
 export default function MisGarajes(config: ConfigSupabase) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [garajes, setGarajes] = useState<Garaje[] | null>(null);
   const [error, setError] = useState("");
 
   const cargar = useCallback(async () => {
-    const { data, error } = await supabaseNavegador(config).rpc("mis_garajes");
+    const { data, error } = await db.rpc("mis_garajes");
     if (error) return setError("No se han podido cargar tus garajes.");
     setGarajes(data as Garaje[]);
-  }, [config]);
+  }, [db]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -23,14 +24,13 @@ export default function MisGarajes(config: ConfigSupabase) {
   }, [cargar]);
 
   async function alternar(g: Garaje) {
-    const { error } = await supabaseNavegador(config).from("garajes").update({ activo: !g.activo }).eq("id", g.id);
+    const { error } = await db.from("garajes").update({ activo: !g.activo }).eq("id", g.id);
     if (error) return setError("No se ha podido cambiar el estado.");
     cargar();
   }
 
   async function borrar(g: Garaje) {
     if (!confirm(`¿Borrar «${g.titulo}»? No se puede deshacer.`)) return;
-    const db = supabaseNavegador(config);
     const { error } = await db.from("garajes").delete().eq("id", g.id);
     if (error) return setError("No se ha podido borrar.");
     const rutas = g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [];

@@ -4,7 +4,8 @@ import { Geist } from "next/font/google";
 import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
 import Pestanas from "./Pestanas";
 import AvisoInstalar from "./AvisoInstalar";
-import { IconoInfo, IconoPersona, Logo } from "./Iconos";
+import MenuLateral from "./MenuLateral";
+import { IconoPersona, Logo } from "./Iconos";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,17 +32,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="es" className={geistSans.variable}>
       <body>
         <header className="cabecera">
-          <Link href="/" className="cabecera-marca">
-            <Logo />
-            <span>{NOMBRE_APP}</span>
-          </Link>
+          <div className="cabecera-izquierda">
+            <MenuLateral />
+            <Link href="/" className="cabecera-marca">
+              <Logo />
+              <span>{NOMBRE_APP}</span>
+            </Link>
+          </div>
           <nav className="cabecera-acciones">
-          <Link href="/cuenta" className="cabecera-info" aria-label="Mi cuenta">
-            <IconoPersona />
-          </Link>
-          <Link href="/acerca" className="cabecera-info" aria-label="Acerca de, fuentes y privacidad">
-            <IconoInfo />
-          </Link>
+            <Link href="/cuenta" className="cabecera-info" aria-label="Mi cuenta">
+              <IconoPersona />
+            </Link>
           </nav>
         </header>
         {children}

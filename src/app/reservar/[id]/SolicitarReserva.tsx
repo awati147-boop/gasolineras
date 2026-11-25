@@ -40,6 +40,7 @@ function calcularRango(modalidad: Modalidad, v: ReturnType<typeof valoresInicial
 }
 
 export default function SolicitarReserva({ garajeId, ...config }: ConfigSupabase & { garajeId: string }) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const router = useRouter();
   const [garaje, setGaraje] = useState<Garaje | null | undefined>(undefined);
   const [sesion, setSesion] = useState<"cargando" | "no" | "si">("cargando");
@@ -50,7 +51,6 @@ export default function SolicitarReserva({ garajeId, ...config }: ConfigSupabase
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const db = supabaseNavegador(config);
     db.auth.getUser().then(({ data }) => setSesion(data.user && !data.user.is_anonymous ? "si" : "no"));
     db.from("garajes")
       .select("id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, altura_max, acceso, enchufe, foto, fotos, lat_aprox, lon_aprox, activo, creado")
@@ -62,7 +62,7 @@ export default function SolicitarReserva({ garajeId, ...config }: ConfigSupabase
         setGaraje(g);
         if (g) setModalidad(g.precio_hora ? "horas" : g.precio_dia ? "dias" : "mes");
       });
-  }, [config, garajeId]);
+  }, [db, garajeId]);
 
   const modalidades = useMemo<Modalidad[]>(
     () => (garaje ? ([garaje.precio_hora && "horas", garaje.precio_dia && "dias", garaje.precio_mes && "mes"].filter(Boolean) as Modalidad[]) : []),
@@ -76,8 +76,9 @@ export default function SolicitarReserva({ garajeId, ...config }: ConfigSupabase
   if (garaje && valido) {
     const ms = fin.getTime() - inicio.getTime();
     if (modalidad === "horas") { unidades = Math.ceil(ms / 3600e3); precioUnidad = Number(garaje.precio_hora); textoUnidades = `${unidades} h`; }
-    if (modalidad === "dias") { unidades = Math.ceil(ms / 86400e3); precioUnidad = Number(garaje.precio_dia); textoUnidades = `${unidades} ${unidades === 1 ? "día" : "días"}`; }
-    if (modalidad === "mes") { unidades = Math.ceil(ms / (86400e3 * 30)); precioUnidad = Number(garaje.precio_mes); textoUnidades = `${unidades} ${unidades === 1 ? "mes" : "meses"}`; }
+    // Días y meses: 1 hora de margen por el cambio de hora (mismo cálculo que el servidor)
+    if (modalidad === "dias") { unidades = Math.max(1, Math.ceil((ms - 3600e3) / 86400e3)); precioUnidad = Number(garaje.precio_dia); textoUnidades = `${unidades} ${unidades === 1 ? "día" : "días"}`; }
+    if (modalidad === "mes") { unidades = Math.max(1, Math.ceil((ms - 3600e3) / (86400e3 * 30))); precioUnidad = Number(garaje.precio_mes); textoUnidades = `${unidades} ${unidades === 1 ? "mes" : "meses"}`; }
   }
   const total = unidades * precioUnidad;
 
@@ -87,7 +88,6 @@ export default function SolicitarReserva({ garajeId, ...config }: ConfigSupabase
     if (!valido) return setError("Revisa las fechas: el final debe ser posterior al inicio.");
     if (inicio.getTime() < Date.now() - 15 * 60e3) return setError("La reserva no puede empezar en el pasado.");
     setEnviando(true);
-    const db = supabaseNavegador(config);
     const { data: r, error } = await db
       .from("reservas")
       .insert({ garaje_id: garajeId, modalidad, inicio: inicio.toISOString(), fin: fin.toISOString() })

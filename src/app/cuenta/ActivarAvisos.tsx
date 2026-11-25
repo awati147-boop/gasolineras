@@ -18,6 +18,7 @@ const instalada = () =>
 
 /** Botón "Activar avisos" para este dispositivo (solicitudes, respuestas y mensajes de reservas) */
 export default function ActivarAvisos({ vapid, ...config }: ConfigSupabase & { vapid: string }) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [estado, setEstado] = useState<Estado>("cargando");
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState("");
@@ -50,7 +51,7 @@ export default function ActivarAvisos({ vapid, ...config }: ConfigSupabase & { v
         (await reg.pushManager.getSubscription()) ??
         (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: aBytes(vapid) }));
       const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      const { error } = await supabaseNavegador(config).rpc("registrar_dispositivo", {
+      const { error } = await db.rpc("registrar_dispositivo", {
         p_endpoint: json.endpoint, p_p256dh: json.keys.p256dh, p_auth: json.keys.auth,
       });
       if (error) throw new Error(error.message);
@@ -64,14 +65,20 @@ export default function ActivarAvisos({ vapid, ...config }: ConfigSupabase & { v
 
   async function desactivar() {
     setOcupado(true);
-    const reg = await navigator.serviceWorker.getRegistration("/sw.js");
-    const sub = await reg?.pushManager.getSubscription();
-    if (sub) {
-      await supabaseNavegador(config).from("push_suscripciones").delete().eq("endpoint", sub.endpoint);
-      await sub.unsubscribe();
+    setError("");
+    try {
+      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) {
+        await db.from("push_suscripciones").delete().eq("endpoint", sub.endpoint);
+        await sub.unsubscribe();
+      }
+      setEstado("apagados");
+    } catch {
+      setError("No se han podido desactivar los avisos. Inténtalo de nuevo.");
+    } finally {
+      setOcupado(false);
     }
-    setEstado("apagados");
-    setOcupado(false);
   }
 
   if (estado === "cargando" || estado === "no-soportado") return null;
