@@ -309,3 +309,29 @@
 .escribir .boton { border-radius: 50%; width: 46px; height: 46px; padding: 0; font-size: 1.1rem; }
 .enlaceCancelar { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--rojo); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .accionesGaraje a { padding: 7px 12px; font-size: 0.85rem; text-decoration: none; }
+
+/* Tablas de las páginas legales */
+.tablaLegal { overflow-x: auto; margin: 8px 0 16px; }
+.tablaLegal table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tablaLegal th, .tablaLegal td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--borde); }
+.tablaLegal th { color: var(--sub); font-weight: 600; }
+
+/* Aparcar: sugerencias del buscador y panel "cerca de tu destino" */
+.sugerencias { list-style: none; margin: -6px 0 12px; padding: 4px; background: var(--superficie); border: 1px solid var(--borde); border-radius: 14px; box-shadow: var(--sombra-fuerte); }
+.sugerencias button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--texto); padding: 9px 10px; border-radius: 10px; cursor: pointer; font: inherit; }
+.sugerencias button:hover, .sugerencias button:focus-visible { background: var(--superficie-2); }
+.sugerencias small { display: block; color: var(--sub); font-size: 0.8rem; }
+.destino { padding: 14px 16px; margin-top: 14px; }
+.destino header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.destino header small { display: block; color: var(--sub); font-size: 0.8rem; }
+.destino header button { border: 0; background: var(--superficie-2); color: var(--texto); width: 30px; height: 30px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; flex: none; }
+.destino ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.destino li { display: flex; align-items: center; gap: 8px; }
+.destinoZona { display: flex; gap: 8px; align-items: flex-start; font-size: 0.86rem; margin: 6px 0; }
+.destinoZona span { width: 12px; height: 12px; border-radius: 50%; flex: none; margin-top: 4px; }
+.destinoItem { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); border-radius: 12px; padding: 8px 10px; cursor: pointer; font: inherit; }
+.destinoItem > span:last-child { min-width: 0; }
+.destinoItem b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.destinoItem small { color: var(--sub); font-size: 0.8rem; }
+.destinoMarca { width: 28px; height: 28px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+.destinoIr { flex: none; background: var(--marca); color: #fff; border-radius: 999px; padding: 8px 12px; font-size: 0.85rem; font-weight: 650; text-decoration: none; }

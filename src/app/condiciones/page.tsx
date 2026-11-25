@@ -61,7 +61,13 @@ export default function Condiciones() {
         carburantes, aparcamientos). El servicio se ofrece tal cual y puede interrumpirse o cambiar.
       </p>
 
-      <h2 className={styles.subtitulo}>8. Cambios y contacto</h2>
+      <h2 className={styles.subtitulo}>8. Contenido patrocinado</h2>
+      <p>
+        Puede haber anuncios de negocios relacionados con la conducción. Siempre van marcados como «Patrocinado» y nunca
+        cambian el orden de los resultados. Lo que contrates con un anunciante es un acuerdo entre tú y él.
+      </p>
+
+      <h2 className={styles.subtitulo}>9. Cambios y contacto</h2>
       <p>
         Podemos actualizar estas condiciones; la fecha de arriba indica la última versión. Para cualquier duda o
         reclamación: <b>{contacto()}</b>. Se aplica la legislación española.

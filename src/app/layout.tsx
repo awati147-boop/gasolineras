@@ -47,7 +47,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <footer className="pie">
           <Link href="/acerca">Acerca de</Link> · <Link href="/condiciones">Condiciones</Link> ·{" "}
-          <Link href="/privacidad">Privacidad</Link> · <Link href="/aviso-legal">Aviso legal</Link>
+          <Link href="/privacidad">Privacidad</Link> · <Link href="/cookies">Cookies</Link> ·{" "}
+          <Link href="/aviso-legal">Aviso legal</Link>
         </footer>
         <AvisoInstalar />
         <Pestanas />

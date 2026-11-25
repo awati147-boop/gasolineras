@@ -1,7 +1,7 @@
 // Datos del responsable de la web (obligatorios por la LSSI y el RGPD).
 // ⚠️ Vacíos de momento: RELLENAR antes de publicar los garajes (como mínimo nombre y email).
 export const TITULAR = {
-  nombre: "",
+  nombre: "Abdel Awati Lasshab",
   nif: "",
   domicilio: "",
   email: "",

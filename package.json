@@ -11,7 +11,8 @@
     "postinstall": "node -e \"require('fs').copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs','public/maplibre-gl-worker.mjs')\"",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "importar-aparcamientos": "node --env-file-if-exists=.env.local scripts/importar-aparcamientos.mts"
+    "importar-aparcamientos": "node --env-file-if-exists=.env.local scripts/importar-aparcamientos.mts",
+    "importar-zonas": "node --env-file-if-exists=.env.local scripts/importar-zonas.mts"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",
