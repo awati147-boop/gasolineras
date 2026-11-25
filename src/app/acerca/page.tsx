@@ -25,8 +25,7 @@ export default function Acerca() {
         </li>
         <li>
           <strong>Mapa:</strong> ©{" "}
-          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores de OpenStreetMap</a>
-          , con <a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre</a>.
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores de OpenStreetMap</a>.
         </li>
         <li>
           Los precios los comunican las propias gasolineras. Pueden cambiar en cualquier momento: comprueba el precio
