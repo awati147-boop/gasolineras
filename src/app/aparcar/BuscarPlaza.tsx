@@ -20,11 +20,28 @@ type Aparcamiento = {
   de_pago: boolean | null; plazas: number | null; plazas_pmr: number | null; horario: string | null;
   operador: string | null; precio: string | null; lat: number; lon: number;
 };
+type Zona = {
+  id: string; ciudad: string; tipo: "rotacion" | "mixta" | "residentes" | "larga" | "libre"; color: string;
+  calle: string | null; plazas: number | null; lat: number; lon: number; lat2: number | null; lon2: number | null; fuente: string;
+};
 type Filtro = "todo" | "libres" | "garajes" | "gratis" | "pago" | "ora";
 
 const ZONA_INICIAL: [number, number, number, number] = [-0.515, 38.335, -0.47, 38.36]; // centro de Alicante
 const REFRESCO_MS = 15_000;
 const ZOOM_MINIMO_PARKINGS = 12;
+const ZOOM_MINIMO_ZONAS = 14;
+
+// Zonas reguladas de la calle (datos abiertos de los ayuntamientos): color de la pintura de la calle
+const COLOR_CALLE: Record<string, string> = {
+  azul: "#1d4ed8", verde: "#15803d", naranja: "#ea7a0c", roja: "#dc2626", blanca: "#94a3b8",
+};
+const TIPO_ZONA: Record<Zona["tipo"], { nombre: string; texto: string }> = {
+  rotacion: { nombre: "Rotación", texto: "De pago y con tiempo máximo, para cualquier conductor." },
+  mixta: { nombre: "Mixta", texto: "Preferente para residentes. Los visitantes pueden aparcar pagando, con un tiempo máximo más corto." },
+  residentes: { nombre: "Solo residentes", texto: "Solo para vecinos con distintivo. Los visitantes no pueden aparcar." },
+  larga: { nombre: "Larga estancia", texto: "De pago, pensada para estancias largas." },
+  libre: { nombre: "Libre", texto: "Aparcamiento gratuito y sin límite de tiempo." },
+};
 
 // Colores por categoría (mismos en mapa, filtros y leyenda)
 const COLOR = { libre: "#16a34a", gratis: "#0d9488", pago: "#2563eb", nd: "#64748b", ora: "#7c3aed", garaje: "#ea580c" };
@@ -35,7 +52,7 @@ const FILTROS: { id: Filtro; texto: string; color?: string }[] = [
   { id: "gratis", texto: "Gratis", color: COLOR.gratis },
   { id: "pago", texto: "De pago", color: COLOR.pago },
   { id: "garajes", texto: "Garajes", color: COLOR.garaje },
-  { id: "ora", texto: "Zona ORA", color: COLOR.ora },
+  { id: "ora", texto: "Zona azul / ORA", color: COLOR.ora },
 ];
 
 const TIPO_TEXTO: Record<string, string> = {
@@ -94,6 +111,22 @@ function fichaAparcamiento(a: Aparcamiento) {
   );
 }
 
+/** Ficha HTML de un tramo de zona regulada */
+function fichaZona(z: Zona) {
+  const t = TIPO_ZONA[z.tipo];
+  const color = COLOR_CALLE[z.color] ?? COLOR.ora;
+  const titulo = z.tipo === "libre" ? "Zona libre (gratis)" : `Zona ${z.color} · ${t.nombre}`;
+  return (
+    `<div class="ficha-cab"><span class="marca" style="background:${color}">${z.tipo === "libre" ? "✓" : "€"}</span>` +
+    `<div><strong>${escapar(titulo)}</strong><small>${escapar(z.calle ?? z.ciudad)}</small></div></div>` +
+    `<p>${t.texto}</p>` +
+    (z.plazas && z.plazas > 1 ? `<p>🚗 ${z.plazas} plazas en este tramo</p>` : "") +
+    (z.tipo !== "libre" ? `<p>💶 Consulta la tarifa y el horario en el parquímetro o en la app de pago de ${escapar(z.ciudad)}.</p>` : "") +
+    `<p><small>Fuente: ${escapar(z.fuente)}. Las señales de la calle mandan sobre este mapa.</small></p>` +
+    comoLlegar(z.lat, z.lon)
+  );
+}
+
 /** Carrusel de fotos (se desliza con el dedo; el contador se actualiza al desplazarse) */
 function carrusel(fotos: string[], supabaseUrl: string) {
   if (!fotos.length) return "";
@@ -128,6 +161,8 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   const plazasRef = useRef<Plaza[]>([]);
   const aparcRef = useRef<Map<string, Aparcamiento>>(new Map());
   const garajesRef = useRef<Map<string, Garaje>>(new Map());
+  const zonasRef = useRef<Map<string, Zona>>(new Map());
+  const [numZonas, setNumZonas] = useState(0);
   const geolocalizar = useRef<GeolocateControl | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("todo");
   const filtroRef = useRef<Filtro>("todo");
@@ -175,6 +210,9 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       f === "todo" ? null : f === "libres" ? ["==", ["get", "cat"], "__ninguno__"] : ["==", ["get", "cat"], f];
     for (const capa of ["aparc-circulo", "aparc-letra"]) {
       m.setFilter(capa, f === "garajes" ? ["==", ["get", "cat"], "__ninguno__"] : filtroAparc);
+    }
+    for (const capa of ["zonas-linea", "zonas-punto"]) {
+      m.setLayoutProperty(capa, "visibility", f === "todo" || f === "ora" ? "visible" : "none");
     }
     for (const capa of ["garajes-zona", "garajes-punto", "garajes-icono"]) {
       m.setLayoutProperty(capa, "visibility", f === "todo" || f === "garajes" ? "visible" : "none");
@@ -253,6 +291,38 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     });
   }, [config]);
 
+  /** Zonas reguladas de la calle en la zona visible (solo con zoom cercano: son muchas) */
+  const cargarZonas = useCallback(async () => {
+    const m = mapaRef.current;
+    if (!m) return;
+    const fuente = m.getSource("zonas") as GeoJSONSource | undefined;
+    if (m.getZoom() < ZOOM_MINIMO_ZONAS) {
+      setNumZonas(0);
+      return fuente?.setData({ type: "FeatureCollection", features: [] });
+    }
+    const b = m.getBounds();
+    const { data, error } = await supabaseNavegador(config)
+      .from("zonas_reguladas")
+      .select("id, ciudad, tipo, color, calle, plazas, lat, lon, lat2, lon2, fuente")
+      .gte("lat", b.getSouth()).lte("lat", b.getNorth())
+      .gte("lon", b.getWest()).lte("lon", b.getEast())
+      .limit(5000);
+    if (error) return; // si la tabla aún no existe, el resto del mapa sigue funcionando
+    const lista = data as Zona[];
+    zonasRef.current = new Map(lista.map((z) => [z.id, z]));
+    setNumZonas(lista.filter((z) => z.tipo !== "libre").length);
+    fuente?.setData({
+      type: "FeatureCollection",
+      features: lista.map((z) => ({
+        type: "Feature",
+        geometry: z.lat2 != null && z.lon2 != null
+          ? { type: "LineString", coordinates: [[z.lon, z.lat], [z.lon2, z.lat2]] }
+          : { type: "Point", coordinates: [z.lon, z.lat] },
+        properties: { id: z.id, color: COLOR_CALLE[z.color] ?? COLOR.ora },
+      })),
+    });
+  }, [config]);
+
   /** Garajes de particulares activos en la zona visible */
   const cargarGarajes = useCallback(async () => {
     const m = mapaRef.current;
@@ -305,7 +375,33 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       m.addControl(geo, "top-right");
 
       m.on("load", () => {
-        // --- Parkings y parquímetros (debajo) ---
+        // --- Zonas reguladas de la calle (lo más abajo) ---
+        m.addSource("zonas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        m.addLayer({
+          id: "zonas-linea",
+          type: "line",
+          source: "zonas",
+          filter: ["==", ["geometry-type"], "LineString"],
+          layout: { "line-cap": "round" },
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 14, 3, 18, 9],
+            "line-opacity": 0.75,
+          },
+        });
+        m.addLayer({
+          id: "zonas-punto",
+          type: "circle",
+          source: "zonas",
+          filter: ["==", ["geometry-type"], "Point"],
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 2.5, 18, 7],
+            "circle-color": ["get", "color"],
+            "circle-opacity": 0.75,
+          },
+        });
+
+        // --- Parkings y parquímetros ---
         m.addSource("aparcamientos", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         m.addLayer({
           id: "aparc-circulo",
@@ -424,6 +520,13 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           if (!g) return;
           abrirHoja(fichaGaraje(g, config.url), [g.lon_aprox, g.lat_aprox], g.id);
         };
+        const abrirZona = (e: MapLayerMouseEvent) => {
+          const encima = ["plazas-circulo", "aparc-circulo", "garajes-punto"];
+          if (m.queryRenderedFeatures(e.point, { layers: encima }).length) return;
+          const z = zonasRef.current.get(String(e.features?.[0]?.properties.id));
+          if (!z) return;
+          abrirHoja(fichaZona(z), [z.lon, z.lat]);
+        };
         /** Muestra la ficha en la hoja inferior y centra el punto en la parte de arriba del mapa */
         const abrirHoja = (html: string, centro: [number, number], garajeId: string | null = null) => {
           setAviso("");
@@ -434,13 +537,14 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         };
         m.on("click", (e) => {
           // Tocar el mapa fuera de un punto cierra la hoja
-          const capas = ["plazas-circulo", "aparc-circulo", "garajes-punto"].filter((c) => m.getLayer(c));
+          const capas = ["plazas-circulo", "aparc-circulo", "garajes-punto", "zonas-linea", "zonas-punto"].filter((c) => m.getLayer(c));
           if (!m.queryRenderedFeatures(e.point, { layers: capas }).length) setHoja(null);
         });
         for (const [capas, accion] of [
           [["plazas-circulo", "plazas-letra"], abrirPlaza],
           [["aparc-circulo", "aparc-letra"], abrirAparcamiento],
           [["garajes-punto", "garajes-icono"], abrirGaraje],
+          [["zonas-linea", "zonas-punto"], abrirZona],
         ] as const) {
           for (const capa of capas) {
             m.on("click", capa, accion);
@@ -453,6 +557,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         cargarPlazas();
         cargarAparcamientos();
         cargarGarajes();
+        cargarZonas();
       });
       m.on("moveend", () => {
         clearTimeout(espera);
@@ -460,6 +565,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           cargarPlazas();
           cargarAparcamientos();
           cargarGarajes();
+          cargarZonas();
         }, 300);
       });
     })();
@@ -473,7 +579,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       mapaRef.current?.remove();
       mapaRef.current = null;
     };
-  }, [cargarPlazas, cargarAparcamientos, cargarGarajes, pintar, aplicarFiltro, config.url]);
+  }, [cargarPlazas, cargarAparcamientos, cargarGarajes, cargarZonas, pintar, aplicarFiltro, config.url]);
 
   function elegir(f: Filtro) {
     setFiltro(f);
@@ -488,7 +594,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     : lejos ? "Acércate para ver parkings"
     : filtro === "gratis" ? plural(conteo.gratis, "parking gratis", "parkings gratis")
     : filtro === "pago" ? plural(conteo.pago, "parking de pago", "parkings de pago")
-    : filtro === "ora" ? plural(conteo.ora, "parquímetro", "parquímetros")
+    : filtro === "ora" ? (numZonas ? plural(numZonas, "tramo de zona regulada", "tramos de zona regulada") : plural(conteo.ora, "parquímetro", "parquímetros"))
     : filtro === "garajes" ? (numGarajes ? plural(numGarajes, "garaje en alquiler", "garajes en alquiler") : "Sin garajes en esta zona")
     : `${plural(vigentes, "plaza libre", "plazas libres")} · ${conteo.gratis + conteo.pago + conteo.nd} parkings`;
 
@@ -553,13 +659,17 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         <span><i style={{ background: COLOR.nd }} />Parking sin dato de precio</span>
         <span><i style={{ background: COLOR.ora }} />Parquímetro (ORA)</span>
         <span><i style={{ background: COLOR.garaje }} />Garaje de particular</span>
+        <span><i style={{ background: COLOR_CALLE.azul, borderRadius: 2 }} />Calle de zona azul</span>
+        <span><i style={{ background: COLOR_CALLE.verde, borderRadius: 2 }} />Calle de zona verde</span>
+        <span><i style={{ background: COLOR_CALLE.naranja, borderRadius: 2 }} />Calle de zona naranja</span>
       </div>
 
       <div className={`${styles.tarjeta} ${styles.proximo}`}>
         <IconoInfo tam={18} />
         <span>
-          Parkings y parquímetros: © colaboradores de OpenStreetMap. Muy pronto: <b>precios de los parkings</b>,{" "}
-          <b>calles de zona azul y naranja</b> y <b>garajes de particulares</b> por horas o días.
+          Parkings y parquímetros: © colaboradores de OpenStreetMap. Calles de zona regulada: datos abiertos de los
+          ayuntamientos de Madrid, Barcelona (B:SM) y València (CC BY 4.0). Muy pronto: <b>precios de los parkings</b> y{" "}
+          <b>más ciudades</b>.
         </span>
       </div>
     </>
