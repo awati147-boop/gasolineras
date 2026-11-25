@@ -38,6 +38,19 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
     return () => sub.subscription.unsubscribe();
   }, [db]);
 
+  // Accesos directos del menú (/cuenta#reservas, #garajes, #avisos): las secciones aparecen al cargar la sesión
+  // y crecen al llegar sus datos, así que se baja hasta ellas una vez ahora y otra cuando ya están rellenas
+  useEffect(() => {
+    if (cargando || !window.location.hash) return;
+    const ir = () => document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const t1 = setTimeout(ir, 50);
+    const t2 = setTimeout(ir, 900);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [cargando]);
+
   const volverA = () => `${window.location.origin}/cuenta`;
 
   async function conGoogle() {
@@ -106,9 +119,9 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
 
         {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
         {guardado && <p className={styles.exito}>✅ Cambios guardados.</p>}
-        <MisReservas {...config} />
-        {vapid && <ActivarAvisos {...config} vapid={vapid} />}
-        <MisGarajes {...config} />
+        <div id="reservas" className={styles.ancla}><MisReservas {...config} /></div>
+        {vapid && <div id="avisos" className={styles.ancla}><ActivarAvisos {...config} vapid={vapid} /></div>}
+        <div id="garajes" className={styles.ancla}><MisGarajes {...config} /></div>
 
         <div className={styles.acciones}>
           <button className={styles.botonSec} onClick={salir}>Cerrar sesión</button>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Map as MapaML, Marker, GeoJSONSource, MapLayerMouseEvent, GeolocateControl, FilterSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
@@ -664,6 +664,17 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     filtroRef.current = f;
     aplicarFiltro(f);
   }
+
+  // Acceso directo del menú "Buscar un garaje": /aparcar?ver=garajes abre con ese filtro
+  // (si el mapa aún no ha cargado, lo aplica al cargar con filtroRef)
+  const ver = useSearchParams().get("ver");
+  useEffect(() => {
+    if (ver !== "garajes") return;
+    filtroRef.current = "garajes";
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronizar con la URL
+    setFiltro("garajes");
+    aplicarFiltro("garajes");
+  }, [ver, aplicarFiltro]);
 
   // Texto del contador flotante según el filtro
   const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
