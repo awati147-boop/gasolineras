@@ -13,6 +13,7 @@ const MOTIVOS: [string, string][] = [
 
 /** Enlace "Denunciar" que despliega un pequeño formulario */
 export default function Denunciar({ tipo, objetoId, ...config }: ConfigSupabase & { tipo: "garaje" | "reserva"; objetoId: string }) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [abierto, setAbierto] = useState(false);
   const [motivo, setMotivo] = useState("estafa");
   const [detalle, setDetalle] = useState("");
@@ -23,7 +24,6 @@ export default function Denunciar({ tipo, objetoId, ...config }: ConfigSupabase 
     e.preventDefault();
     setError("");
     setEstado("enviando");
-    const db = supabaseNavegador(config);
     try {
       await asegurarSesion(db); // sin cuenta se usa un usuario anónimo
       const { error } = await db.from("denuncias").insert({ tipo, objeto_id: objetoId, motivo, detalle: detalle.trim() || null });

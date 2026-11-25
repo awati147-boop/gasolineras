@@ -18,6 +18,7 @@ const horaMensaje = (iso: string) => {
 };
 
 export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase & { reservaId: string }) {
+  const [db] = useState(() => supabaseNavegador(config)); // mismo cliente siempre (no cambia entre renders)
   const [r, setR] = useState<Reserva | null | undefined>(undefined);
   const [yo, setYo] = useState<string | null>(null);
   const [direccion, setDireccion] = useState<Direccion | null>(null);
@@ -29,7 +30,6 @@ export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase 
   const finChat = useRef<HTMLDivElement>(null);
 
   const cargarReserva = useCallback(async () => {
-    const db = supabaseNavegador(config);
     const { data } = await db.rpc("mis_reservas");
     const res = ((data as Reserva[] | null) ?? []).find((x) => x.id === reservaId) ?? null;
     setR(res);
@@ -38,10 +38,9 @@ export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase 
       const { data: dir } = await db.rpc("direccion_reserva", { id_reserva: reservaId });
       setDireccion((dir as Direccion[] | null)?.[0] ?? null);
     }
-  }, [config, reservaId]);
+  }, [db, reservaId]);
 
   useEffect(() => {
-    const db = supabaseNavegador(config);
     db.auth.getUser().then(({ data }) => setYo(data.user?.id ?? null));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial de datos remotos
     cargarReserva();
@@ -70,7 +69,7 @@ export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase 
     return () => {
       db.removeChannel(canal);
     };
-  }, [config, reservaId, cargarReserva]);
+  }, [db, reservaId, cargarReserva]);
 
   // Bajar al último mensaje
   useEffect(() => {
@@ -86,7 +85,7 @@ export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase 
     if (!confirm(preguntas[estado])) return;
     setError("");
     setOcupado(true);
-    const { error } = await supabaseNavegador(config).from("reservas").update({ estado }).eq("id", reservaId);
+    const { error } = await db.from("reservas").update({ estado }).eq("id", reservaId);
     setOcupado(false);
     if (error) return setError(/permission/i.test(error.message) ? "No se ha podido cambiar la reserva." : error.message);
     cargarReserva();
@@ -97,7 +96,7 @@ export default function DetalleReserva({ reservaId, ...config }: ConfigSupabase 
     const t = texto.trim();
     if (!t) return;
     setTexto("");
-    const { data, error } = await supabaseNavegador(config)
+    const { data, error } = await db
       .from("mensajes")
       .insert({ reserva_id: reservaId, texto: t })
       .select("id, autor, texto, creado")

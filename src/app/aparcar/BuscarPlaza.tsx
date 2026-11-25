@@ -176,6 +176,7 @@ function fichaGaraje(g: Garaje, supabaseUrl: string) {
 }
 
 export default function BuscarPlaza(config: ConfigSupabase) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const contenedor = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaML | null>(null);
   const plazasRef = useRef<Plaza[]>([]);
@@ -202,6 +203,10 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   const [destino, setDestino] = useState<Lugar | null>(null);
   const marcadorRef = useRef<Marker | null>(null);
   const destinoRef = useRef<Lugar | null>(null);
+  // Zona de la última carga de parkings (para no mezclar datos de otro sitio con el destino)
+  const zonaAparcRef = useRef<{ s: number; n: number; o: number; e: number } | null>(null);
+  // Número de la última petición de cada tipo: si llega antes una respuesta vieja, se descarta
+  const turno = useRef({ plazas: 0, aparc: 0, zonas: 0, garajes: 0 });
   const [cerca, setCerca] = useState<Cerca | null>(null);
   const router = useRouter();
 
@@ -209,7 +214,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   async function alPulsarFicha(e: React.MouseEvent<HTMLDivElement>) {
     const boton = (e.target as HTMLElement).closest("[data-solicitar]");
     if (!boton) return;
-    const { data } = await supabaseNavegador(config).auth.getUser();
+    const { data } = await db.auth.getUser();
     if (!data.user || data.user.is_anonymous) {
       setAviso("cuenta");
     } else {
@@ -268,7 +273,9 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   /** Lo que hay cerca del destino buscado: parkings, plazas libres y zona de la calle (tras cada carga) */
   const calcularCerca = useCallback(() => {
     const d = destinoRef.current;
-    if (!d) return setCerca(null);
+    // Solo si los parkings cargados son de la zona del destino (si no, serían los del sitio anterior)
+    const zona0 = zonaAparcRef.current;
+    if (!d || !zona0 || d.lat < zona0.s || d.lat > zona0.n || d.lon < zona0.o || d.lon > zona0.e) return setCerca(null);
     const parkings = [...aparcRef.current.values()]
       .filter((a) => a.clase === "parking" && a.acceso !== "clientes")
       .map((a) => ({ a, m: metros(d, a) }))
@@ -297,45 +304,51 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   const cargarPlazas = useCallback(async () => {
     const m = mapaRef.current;
     if (!m || document.hidden) return;
+    const n = ++turno.current.plazas;
     const b = m.getBounds();
-    const { data, error } = await supabaseNavegador(config)
+    const { data, error } = await db
       .from("plazas")
       .select("id, lat, lon, creada, expira")
       .gte("lat", b.getSouth()).lte("lat", b.getNorth())
       .gte("lon", b.getWest()).lte("lon", b.getEast())
       .order("creada", { ascending: false })
       .limit(500);
+    if (n !== turno.current.plazas) return; // ya hay una petición más nueva
     if (error) return setError("No se han podido cargar las plazas. Lo reintentamos en unos segundos.");
     setError("");
     plazasRef.current = data;
     setActualizado(new Date());
     pintar();
     calcularCerca();
-  }, [config, pintar, calcularCerca]);
+  }, [db, pintar, calcularCerca]);
 
   /** Parkings y parquímetros de la zona visible (al mover el mapa) */
   const cargarAparcamientos = useCallback(async () => {
     const m = mapaRef.current;
     if (!m) return;
     const fuente = m.getSource("aparcamientos") as GeoJSONSource | undefined;
+    const n = ++turno.current.aparc;
     if (m.getZoom() < ZOOM_MINIMO_PARKINGS) {
       setLejos(true);
       setConteo({ gratis: 0, pago: 0, nd: 0, ora: 0 });
       aparcRef.current = new Map();
+      zonaAparcRef.current = null;
       calcularCerca();
       return fuente?.setData({ type: "FeatureCollection", features: [] });
     }
     setLejos(false);
     const b = m.getBounds();
-    const { data, error } = await supabaseNavegador(config)
+    const { data, error } = await db
       .from("aparcamientos")
       .select("id, clase, nombre, tipo, acceso, de_pago, plazas, plazas_pmr, horario, operador, precio, lat, lon")
       .gte("lat", b.getSouth()).lte("lat", b.getNorth())
       .gte("lon", b.getWest()).lte("lon", b.getEast())
       .limit(3000);
+    if (n !== turno.current.aparc) return; // ya hay una petición más nueva
     if (error) return setError("No se han podido cargar los aparcamientos.");
     const lista = data as Aparcamiento[];
     aparcRef.current = new Map(lista.map((a) => [a.id, a]));
+    zonaAparcRef.current = { s: b.getSouth(), n: b.getNorth(), o: b.getWest(), e: b.getEast() };
     const c = { gratis: 0, pago: 0, nd: 0, ora: 0 };
     lista.forEach((a) => c[categoria(a)]++);
     setConteo(c);
@@ -348,13 +361,14 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         properties: { id: a.id, cat: categoria(a), letra: a.clase === "parquimetro" ? "€" : "P" },
       })),
     });
-  }, [config, calcularCerca]);
+  }, [db, calcularCerca]);
 
   /** Zonas reguladas de la calle en la zona visible (solo con zoom cercano: son muchas) */
   const cargarZonas = useCallback(async () => {
     const m = mapaRef.current;
     if (!m) return;
     const fuente = m.getSource("zonas") as GeoJSONSource | undefined;
+    const n = ++turno.current.zonas;
     if (m.getZoom() < ZOOM_MINIMO_ZONAS) {
       setNumZonas(0);
       zonasRef.current = new Map();
@@ -362,12 +376,13 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       return fuente?.setData({ type: "FeatureCollection", features: [] });
     }
     const b = m.getBounds();
-    const { data, error } = await supabaseNavegador(config)
+    const { data, error } = await db
       .from("zonas_reguladas")
       .select("id, ciudad, tipo, color, calle, plazas, lat, lon, lat2, lon2, fuente")
       .gte("lat", b.getSouth()).lte("lat", b.getNorth())
       .gte("lon", b.getWest()).lte("lon", b.getEast())
       .limit(5000);
+    if (n !== turno.current.zonas) return; // ya hay una petición más nueva
     if (error) return; // si la tabla aún no existe, el resto del mapa sigue funcionando
     const lista = data as Zona[];
     zonasRef.current = new Map(lista.map((z) => [z.id, z]));
@@ -383,21 +398,22 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         properties: { id: z.id, color: COLOR_CALLE[z.color] ?? COLOR.ora },
       })),
     });
-  }, [config, calcularCerca]);
+  }, [db, calcularCerca]);
 
   /** Garajes de particulares activos en la zona visible */
   const cargarGarajes = useCallback(async () => {
     const m = mapaRef.current;
     if (!m) return;
+    const n = ++turno.current.garajes;
     const b = m.getBounds();
-    const { data, error } = await supabaseNavegador(config)
+    const { data, error } = await db
       .from("garajes")
       .select("id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, altura_max, acceso, enchufe, foto, fotos, lat_aprox, lon_aprox, activo, creado")
       .eq("activo", true)
       .gte("lat_aprox", b.getSouth()).lte("lat_aprox", b.getNorth())
       .gte("lon_aprox", b.getWest()).lte("lon_aprox", b.getEast())
       .limit(500);
-    if (error) return;
+    if (n !== turno.current.garajes || error) return;
     const lista = data as Garaje[];
     garajesRef.current = new Map(lista.map((g) => [g.id, g]));
     setNumGarajes(lista.length);
@@ -409,7 +425,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         properties: { id: g.id },
       })),
     });
-  }, [config]);
+  }, [db]);
 
   useEffect(() => {
     let cancelado = false;
@@ -686,6 +702,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
   async function elegirLugar(l: Lugar) {
     destinoRef.current = l;
     setDestino(l);
+    calcularCerca(); // si los datos aún son de otra zona, el panel muestra "Buscando…" hasta que lleguen
     setTexto(l.nombre);
     setSugerencias([]);
     setAvisoBusqueda("");
@@ -695,7 +712,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const maplibregl = await import("maplibre-gl");
     marcadorRef.current?.remove();
     marcadorRef.current = new maplibregl.Marker({ color: "#dc2626" }).setLngLat([l.lon, l.lat]).addTo(m);
-    m.flyTo({ center: [l.lon, l.lat], zoom: 16 });
+    m.flyTo({ center: [l.lon, l.lat], zoom: 16, maxDuration: 2500 });
   }
 
   /** Abre la ficha de un parking de la lista del destino */
@@ -816,7 +833,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         </div>
       )}
 
-      {destino && cerca && (
+      {destino && (
     <section className={`${styles.tarjeta} ${styles.destino}`} aria-label="Aparcar cerca de tu destino">
       <header>
         <div>
@@ -826,6 +843,14 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         <button type="button" onClick={quitarDestino} aria-label="Quitar destino">×</button>
       </header>
 
+      {!cerca ? (
+        <p className={styles.sub}>
+          Buscando qué hay cerca de tu destino…{" "}
+          <button type="button" className={styles.enlaceBoton} onClick={() => elegirLugar(destino)}>
+            Centrar en el destino
+          </button>
+        </p>
+      ) : (<>
       {cerca.zona ? (
         <p className={styles.destinoZona}>
           <span style={{ background: COLOR_CALLE[cerca.zona.color] ?? COLOR.ora }} />
@@ -878,6 +903,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           No conocemos parkings a menos de {RADIO_DESTINO_M} m. Mira en el mapa si hay plazas libres o zona regulada.
         </p>
       )}
+      </>)}
     </section>
       )}
 

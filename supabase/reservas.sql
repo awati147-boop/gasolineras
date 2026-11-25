@@ -60,18 +60,19 @@ begin
       raise exception 'Tienes demasiadas solicitudes pendientes. Espera a que te respondan';
     end if;
 
-    -- Precio según la modalidad (redondeando hacia arriba)
+    -- Precio según la modalidad (redondeando hacia arriba). En días y meses se descuenta 1 hora de margen:
+    -- el día del cambio de hora de octubre dura 25 h y no debe cobrarse como 2 días.
     if new.modalidad = 'horas' then
       if g.precio_hora is null then raise exception 'Este garaje no se alquila por horas'; end if;
       unidades := ceil(extract(epoch from (new.fin - new.inicio)) / 3600);
       new.precio := unidades * g.precio_hora;
     elsif new.modalidad = 'dias' then
       if g.precio_dia is null then raise exception 'Este garaje no se alquila por días'; end if;
-      unidades := ceil(extract(epoch from (new.fin - new.inicio)) / 86400);
+      unidades := greatest(1, ceil((extract(epoch from (new.fin - new.inicio)) - 3600) / 86400));
       new.precio := unidades * g.precio_dia;
     else
       if g.precio_mes is null then raise exception 'Este garaje no se alquila por meses'; end if;
-      unidades := ceil(extract(epoch from (new.fin - new.inicio)) / (86400 * 30));
+      unidades := greatest(1, ceil((extract(epoch from (new.fin - new.inicio)) - 3600) / (86400 * 30)));
       new.precio := unidades * g.precio_mes;
     end if;
 

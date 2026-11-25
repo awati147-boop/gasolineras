@@ -9,11 +9,11 @@ import styles from "../page.module.css";
 
 /** Reservas recibidas (como dueño) y enviadas (como conductor) */
 export default function MisReservas(config: ConfigSupabase) {
+  const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
   const [pestana, setPestana] = useState<"recibidas" | "enviadas" | null>(null);
 
   useEffect(() => {
-    const db = supabaseNavegador(config);
     const cargar = () =>
       db.rpc("mis_reservas").then(({ data }) => setReservas((data as Reserva[] | null) ?? []));
     cargar();
@@ -25,7 +25,7 @@ export default function MisReservas(config: ConfigSupabase) {
     return () => {
       db.removeChannel(canal);
     };
-  }, [config]);
+  }, [db]);
 
   if (reservas === null) return <div className={styles.esqueleto} />;
   if (reservas.length === 0) return null; // sin reservas todavía: no mostramos el bloque
