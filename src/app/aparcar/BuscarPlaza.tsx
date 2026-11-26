@@ -7,7 +7,7 @@ import type { Map as MapaML, Marker, GeoJSONSource, MapLayerMouseEvent, Geolocat
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
-import { ORA_ALICANTE, enAlicante } from "@/lib/ora";
+import { fechaCorta, tarifaCiudad, tarifaCiudadEn, type TarifaCiudad } from "@/lib/tarifasZonaAzul";
 import { nombrePropio } from "@/lib/texto";
 import { fechaTarifa, resumenTarifa, tarifaDe } from "@/lib/preciosParkings";
 import styles from "../page.module.css";
@@ -113,17 +113,13 @@ const comoLlegar = (lat: number, lon: number) =>
 /** Ficha HTML de un parking o parquímetro */
 function fichaAparcamiento(a: Aparcamiento) {
   if (a.clase === "parquimetro") {
-    const tarifas = enAlicante(a.lon, a.lat)
-      ? `<div class="ficha-tarifas">${ORA_ALICANTE.tipos
-          .map(
-            (t) =>
-              `<div><span style="background:${t.color}"></span><b>${t.nombre}</b><br><small>${t.precio} · ${t.maximo}<br>${t.horario}</small></div>`,
-          )
-          .join("")}</div><p>${ORA_ALICANTE.avisos}</p>`
+    const ciudad = tarifaCiudadEn(a.lon, a.lat);
+    const tarifas = ciudad
+      ? bloqueTarifaCiudad(ciudad)
       : `<p>Estacionamiento regulado. Consulta la tarifa y el horario en el propio parquímetro.</p>`;
     return (
       `<div class="ficha-cab"><span class="marca" style="background:${COLOR.ora}">€</span>` +
-      `<div><strong>Parquímetro</strong><small>Zona de estacionamiento regulado (ORA)</small></div></div>` +
+      `<div><strong>Parquímetro</strong><small>Zona de estacionamiento regulado${ciudad ? ` · ${ciudad.ciudad}` : ""}</small></div></div>` +
       tarifas +
       comoLlegar(a.lat, a.lon)
     );
@@ -150,13 +146,19 @@ function fichaAparcamiento(a: Aparcamiento) {
   );
 }
 
-/** Tarifa oficial de la ORA de Alicante para el tipo de tramo (azul, media estancia o naranja) */
-function tarifaOraAlicante(tipo: Zona["tipo"]) {
-  const t = ORA_ALICANTE.tipos[tipo === "larga" ? 1 : tipo === "mixta" ? 2 : 0];
+/** Precio orientativo de la zona regulada de una ciudad (solo los tipos de ese tramo, si se sabe) */
+function bloqueTarifaCiudad(c: TarifaCiudad, tipo?: Zona["tipo"]) {
+  const suyos = tipo ? c.tipos.filter((t) => t.para?.includes(tipo)) : [];
+  const tipos = suyos.length ? suyos : c.tipos;
   return (
-    `<div class="ficha-tarifas"><div><span style="background:${t.color}"></span><b>${t.nombre}</b><br>` +
-    `<small>${t.precio} · ${t.maximo}<br>${t.horario}</small></div></div>` +
-    `<p><small>${ORA_ALICANTE.avisos} Tarifas: <a href="${ORA_ALICANTE.fuente}" target="_blank" rel="noopener">web oficial de la ORA</a>.</small></p>`
+    `<p class="ficha-orientativo">💶 Precio orientativo · ${escapar(c.servicio)} de ${escapar(c.ciudad)}</p>` +
+    `<div class="ficha-tarifas">${tipos
+      .map((t) => `<div><span style="background:${t.color}"></span><b>${escapar(t.nombre)}</b><br>` +
+        `<small>${escapar(t.precio)}${t.maximo ? ` · ${escapar(t.maximo)}` : ""}</small></div>`)
+      .join("")}</div>` +
+    (c.notas ? `<p><small>${escapar(c.notas)}</small></p>` : "") +
+    `<p><small>Comprueba siempre el parquímetro y las señales. Fuente: <a href="${escapar(c.fuente)}" target="_blank" rel="noopener">` +
+    `${escapar(c.fuenteNombre)}</a>, consultada el ${fechaCorta(c.fecha)}.</small></p>`
   );
 }
 
@@ -170,8 +172,9 @@ function fichaZona(z: Zona) {
     `<div><strong>${escapar(titulo)}</strong><small>${escapar(z.calle ?? z.ciudad)}</small></div></div>` +
     `<p>${t.texto}</p>` +
     (z.plazas && z.plazas > 1 ? `<p>🚗 ${z.plazas} plazas en este tramo</p>` : "") +
-    (z.ciudad === "Alicante" ? tarifaOraAlicante(z.tipo)
-      : z.tipo !== "libre" ? `<p>💶 Consulta la tarifa y el horario en el parquímetro o en la app de pago de ${escapar(z.ciudad)}.</p>` : "") +
+    (z.tipo === "libre" ? ""
+      : tarifaCiudad(z.ciudad) ? bloqueTarifaCiudad(tarifaCiudad(z.ciudad)!, z.tipo)
+      : `<p>💶 Consulta la tarifa y el horario en el parquímetro o en la app de pago de ${escapar(z.ciudad)}.</p>`) +
     `<p><small>Fuente: ${escapar(z.fuente)}. Las señales de la calle mandan sobre este mapa.</small></p>` +
     comoLlegar(z.lat, z.lon)
   );

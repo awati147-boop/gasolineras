@@ -138,6 +138,7 @@ button { font: inherit; }
 .ficha-tarifas div { position: relative; padding-left: 16px; line-height: 1.35; }
 .ficha-tarifas span { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; }
 .ficha-tarifas small { color: var(--sub); }
+.ficha .ficha-orientativo { margin: 12px 0 -4px; color: var(--texto); font-weight: 650; font-size: 0.9rem; }
 .ficha-tabla { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 4px 18px; margin: 10px 0 6px; font-variant-numeric: tabular-nums; }
 .ficha-tabla span { color: var(--sub); }
 .ficha-tabla b { text-align: right; }
