@@ -4,6 +4,7 @@
 //   npm run importar-zonas                  (todas las ciudades)
 //   npm run importar-zonas -- vlc bcn       (solo esas)
 //   npm run importar-zonas -- --dry-run     (no escribe)
+//   npm run importar-zonas -- ali --dry-run --json=ora.json   (guarda lo que importaría, para revisarlo)
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 type Tipo = "rotacion" | "mixta" | "residentes" | "larga" | "libre";
@@ -171,10 +172,179 @@ async function valencia(marca: string): Promise<Fila[]> {
   return filas;
 }
 
+// ---------- Alicante: tramos de los decretos del Ayuntamiento, dibujados sobre las calles de OpenStreetMap ----------
+// El Ayuntamiento no publica un mapa de la ORA: las calles salen de sus decretos en el BOP ("calle X, desde Y
+// hasta Z, lado par/impar") y de la relación oficial de calles del centro. Ver scripts/datos/ora-alicante.json.
+type TramoOra = { calle: string; desde: string; hasta: string; lado: "par" | "impar"; tipo: "basica" | "media" | "naranja"; plazas: number | null; fuente: string };
+type DatosOra = { fuentes: Record<string, { texto: string; url: string }>; tramos: TramoOra[]; callesCentro2006: string[] };
+const ALI_TIPOS: Record<TramoOra["tipo"], [Tipo, string]> = { basica: ["rotacion", "azul"], media: ["larga", "azul"], naranja: ["mixta", "naranja"] };
+const ALI_ZONA = "38.330,-0.505,38.372,-0.468"; // centro, Mercado y Carolinas
+const ALI_CENTRO = { s: 38.336, n: 38.352, o: -0.5, e: -0.476 }; // ámbito de la relación de 2006
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+
+// Nombres de los decretos que no coinciden con ningún nombre de OSM (calles renombradas sin old_name).
+// El resto se encuentra por name, name:es, alt_name:es u old_name (OSM guarda el castellano y los nombres antiguos).
+const ALI_ALIAS: Record<string, string> = {
+  "cardenal j. cisneros": "catedrático daniel jiménez de cisneros", "plaza del mar": "porta mar",
+};
+const NOMBRES_OSM = ["name", "name:es", "alt_name", "alt_name:es", "old_name", "old_name:es", "official_name"];
+const VACIAS = new Set(["calle", "carrer", "avenida", "avinguda", "av", "avda", "plaza", "placa", "paseo", "passeig", "de", "del",
+  "la", "el", "l", "d", "los", "las", "els", "dels", "y", "i", "en", "na", "c", "pl"]);
+// Títulos que OSM puede añadir o quitar ("Poeta Quintana" / "Carrer del Poeta Quintana")
+const TITULOS = new Set(["poeta", "pintor", "doctor", "dr", "general", "gral", "capitan", "padre", "arquitecto", "medico", "camarada",
+  "cardenal", "maestro", "mestre", "musico", "benito", "jose", "josep", "san", "sant", "j"]);
+const palabras = (s: string) => {
+  const base = ALI_ALIAS[s.toLowerCase()] ?? s;
+  return base.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’'.·-]/g, " ")
+    .replace(/\bdr\b/g, "doctor").replace(/\bgral\b/g, "general")
+    .split(/\s+/).filter((p) => p && !VACIAS.has(p));
+};
+/** ¿El nombre de OSM corresponde a la calle del decreto? (mismas palabras, salvo títulos) */
+function mismaCalle(decreto: string, osm: string) {
+  const d = palabras(decreto), o = palabras(osm);
+  const clave = d.filter((p) => !TITULOS.has(p));
+  return clave.length > 0 && clave.every((p) => o.includes(p)) && o.every((p) => d.includes(p) || TITULOS.has(p));
+}
+
+type Nodo = { lat: number; lon: number };
+async function overpass(consulta: string) {
+  for (let ronda = 0; ronda < 3; ronda++) for (const servidor of OVERPASS) {
+    try {
+      const res = await fetch(servidor, {
+        method: "POST", headers: { ...UA, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ data: consulta }), signal: AbortSignal.timeout(180_000),
+      });
+      if (res.ok) return (await res.json()) as { elements: { type: string; id: number; lat?: number; lon?: number; nodes?: number[]; tags?: Record<string, string> }[] };
+    } catch { /* se prueba el siguiente */ }
+    await espera(20_000 * (ronda + 1));
+  }
+  throw new Error("OpenStreetMap (Overpass) no responde");
+}
+
+function metros(a: Nodo, b: Nodo) {
+  const r = Math.PI / 180, x = (b.lon - a.lon) * r * Math.cos(((a.lat + b.lat) / 2) * r), y = (b.lat - a.lat) * r;
+  return Math.sqrt(x * x + y * y) * 6_371_000;
+}
+
+async function alicante(marca: string): Promise<Fila[]> {
+  const { readFileSync } = await import("node:fs");
+  const datos = JSON.parse(readFileSync(new URL("./datos/ora-alicante.json", import.meta.url), "utf8")) as DatosOra;
+  const osm = await overpass(`[out:json][timeout:150];way["highway"]["name"]["highway"!~"footway|path|cycleway|steps|pedestrian|service"](${ALI_ZONA});out body;>;out skel qt;`);
+  const nodos = new Map<number, Nodo>();
+  const vias: { nombres: string[]; nodos: number[] }[] = [];
+  for (const e of osm.elements) {
+    if (e.type === "node") nodos.set(e.id, { lat: e.lat!, lon: e.lon! });
+    else if (e.type === "way" && e.nodes && e.tags?.name) {
+      // official_name viene como "Carrer de X / Calle X"
+      const nombres = NOMBRES_OSM.flatMap((k) => (e.tags![k] ?? "").split(" / ")).filter(Boolean);
+      vias.push({ nombres, nodos: e.nodes });
+    }
+  }
+  const viasDe = new Map<string, typeof vias>();
+  const buscar = (calle: string) => {
+    if (!viasDe.has(calle)) viasDe.set(calle, vias.filter((v) => v.nombres.some((n) => mismaCalle(calle, n))));
+    return viasDe.get(calle)!;
+  };
+
+  /** Camino más corto por la calle entre su cruce con `desde` y su cruce con `hasta` (lista de nodos) */
+  function tramo(calle: string, desde: string, hasta: string): number[] | null {
+    const propias = buscar(calle);
+    if (!propias.length) return null;
+    const vecinos = new Map<number, number[]>();
+    for (const v of propias) v.nodos.forEach((n, i) => {
+      const l = vecinos.get(n) ?? [];
+      if (i > 0) l.push(v.nodos[i - 1]);
+      if (i < v.nodos.length - 1) l.push(v.nodos[i + 1]);
+      vecinos.set(n, l);
+    });
+    const cruces = (otra: string) => {
+      const suyos = new Set(buscar(otra).flatMap((v) => v.nodos));
+      const exactos = [...vecinos.keys()].filter((n) => suyos.has(n));
+      if (exactos.length) return exactos;
+      // Sin nodo común (plaza, desfase, cruce por un paso peatonal): el punto más cercano, si está a menos de 60 m
+      let mejor: [number, number] | null = null;
+      for (const n of vecinos.keys()) for (const s of suyos) {
+        const d = metros(nodos.get(n)!, nodos.get(s)!);
+        if (d < 60 && (!mejor || d < mejor[1])) mejor = [n, d];
+      }
+      return mejor ? [mejor[0]] : [];
+    };
+    const inicios = cruces(desde), finales = new Set(cruces(hasta));
+    if (!inicios.length || !finales.size) return null;
+    // Dijkstra desde todos los cruces de inicio a la vez
+    const dist = new Map<number, number>(), previo = new Map<number, number>();
+    const pendientes = new Set(inicios);
+    inicios.forEach((n) => dist.set(n, 0));
+    while (pendientes.size) {
+      let u = -1, du = Infinity;
+      for (const n of pendientes) if (dist.get(n)! < du) { u = n; du = dist.get(n)!; }
+      pendientes.delete(u);
+      if (finales.has(u)) {
+        const camino = [u];
+        while (previo.has(camino[0])) camino.unshift(previo.get(camino[0])!);
+        return du < 900 ? camino : null; // un tramo entre dos cruces no mide casi un kilómetro
+      }
+      for (const v of vecinos.get(u) ?? []) {
+        const d = du + metros(nodos.get(u)!, nodos.get(v)!);
+        if (d < (dist.get(v) ?? Infinity)) { dist.set(v, d); previo.set(v, u); pendientes.add(v); }
+      }
+    }
+    return null;
+  }
+
+  const filas: Fila[] = [];
+  const segmentos = (base: string, camino: number[], t: [Tipo, string], calle: string, plazas: number | null, fuente: string) => {
+    for (let k = 1; k < camino.length; k++) {
+      const a = nodos.get(camino[k - 1])!, b = nodos.get(camino[k])!;
+      filas.push({ id: `${base}-${k}`, ciudad: "Alicante", tipo: t[0], color: t[1], calle, plazas, lat: a.lat, lon: a.lon,
+        lat2: b.lat, lon2: b.lon, fuente, actualizado: marca });
+    }
+  };
+
+  // 1) Tramos de los decretos: se juntan los dos lados de un tramo si son del mismo tipo
+  const grupos = new Map<string, TramoOra[]>();
+  for (const t of datos.tramos) {
+    const k = [t.fuente, t.calle, ...[t.desde, t.hasta].sort()].join("|");
+    grupos.set(k, [...(grupos.get(k) ?? []), t]);
+  }
+  const sinDibujar: string[] = [];
+  let g = 0;
+  for (const lados of grupos.values()) {
+    g++;
+    const t0 = lados[0];
+    const camino = tramo(t0.calle, t0.desde, t0.hasta);
+    if (!camino) { sinDibujar.push(`${t0.calle} (${t0.desde} – ${t0.hasta})`); continue; }
+    const tipos = [...new Set(lados.map((l) => l.tipo))];
+    const fuente = datos.fuentes[t0.fuente].texto;
+    for (const tipo of tipos) {
+      const suyos = lados.filter((l) => l.tipo === tipo);
+      const lado = suyos.length > 1 ? "ambos lados" : suyos[0].lado === "par" ? "números pares" : "números impares";
+      const plazas = suyos.some((l) => l.plazas != null) ? suyos.reduce((s, l) => s + (l.plazas ?? 0), 0) : null;
+      // Si cada lado es de un tipo distinto, el id lleva el lado para dibujarlos uno junto al otro
+      const sufijo = tipos.length > 1 ? (suyos[0].lado === "par" ? "~p" : "~i") : "";
+      segmentos(`ali:${t0.fuente}:${g}${sufijo}`, camino, ALI_TIPOS[tipo], `${t0.calle} · de ${t0.desde} a ${t0.hasta} (${lado})`, plazas, fuente);
+    }
+  }
+
+  // 2) Calles del centro de la relación de 2006 (sin tramos: la calle entera dentro del centro)
+  const centro = (n: Nodo) => n.lat >= ALI_CENTRO.s && n.lat <= ALI_CENTRO.n && n.lon >= ALI_CENTRO.o && n.lon <= ALI_CENTRO.e;
+  datos.callesCentro2006.forEach((calle, i) => {
+    const propias = buscar(calle);
+    if (!propias.length) return sinDibujar.push(calle);
+    propias.forEach((v, j) => {
+      const dentro = v.nodos.filter((n) => centro(nodos.get(n)!));
+      if (dentro.length > 1) segmentos(`ali:2006:${i}-${j}`, dentro, ALI_TIPOS.basica, `${calle} (zona azul)`, null, datos.fuentes["2006"].texto);
+    });
+  });
+  if (sinDibujar.length) console.log(`  Alicante: sin encontrar en el mapa (${sinDibujar.length}): ${sinDibujar.join("; ")}`);
+  return filas;
+}
+
 const CIUDADES: Record<string, { nombre: string; importar: (marca: string) => Promise<Fila[]> }> = {
   mad: { nombre: "Madrid", importar: madrid },
   bcn: { nombre: "Barcelona", importar: barcelona },
   vlc: { nombre: "Valencia", importar: valencia },
+  ali: { nombre: "Alicante", importar: alicante },
 };
 
 async function main() {
@@ -202,6 +372,8 @@ async function main() {
       const resumen: Record<string, number> = {};
       filas.forEach((f) => (resumen[`${f.tipo}/${f.color}`] = (resumen[`${f.tipo}/${f.color}`] ?? 0) + 1));
       console.log(`${nombre}: ${filas.length} tramos`, resumen);
+      const json = args.find((a) => a.startsWith("--json="))?.slice(7);
+      if (json) (await import("node:fs")).writeFileSync(json.replace(".json", `-${codigo}.json`), JSON.stringify(filas));
       if (!db) continue;
       for (let i = 0; i < filas.length; i += 1000) {
         const { error } = await db.from("zonas_reguladas").upsert(filas.slice(i, i + 1000), { onConflict: "id" });

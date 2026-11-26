@@ -384,7 +384,7 @@
 .destino header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
 .destino header small { display: block; color: var(--sub); font-size: 0.8rem; }
 .destino header button { border: 0; background: var(--superficie-2); color: var(--texto); width: 30px; height: 30px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; flex: none; }
-.destino ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.destino ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .destino li { display: flex; align-items: center; gap: 8px; }
 .destinoZona { display: flex; gap: 8px; align-items: flex-start; font-size: 0.86rem; margin: 6px 0; }
 .destinoZona span { width: 12px; height: 12px; border-radius: 50%; flex: none; margin-top: 4px; }

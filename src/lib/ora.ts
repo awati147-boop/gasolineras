@@ -24,7 +24,7 @@ export const ORA_ALICANTE = {
       color: "#ea580c",
       precio: "0,70 € / 30 min",
       maximo: "Máx. 1 h (1,40 €)",
-      horario: "Residentes: 0,30 €/día",
+      horario: "L–V 9–14 y 16–20 · S 9–14 · Residentes: 0,30 €/día (sábados 0,15 €)",
     },
   ],
   avisos: "Domingos y festivos, gratis. Comprueba siempre el parquímetro y las señales.",

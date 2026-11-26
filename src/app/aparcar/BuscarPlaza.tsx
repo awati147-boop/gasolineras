@@ -9,6 +9,7 @@ import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
 import { ORA_ALICANTE, enAlicante } from "@/lib/ora";
 import { nombrePropio } from "@/lib/texto";
+import { fechaTarifa, resumenTarifa, tarifaDe } from "@/lib/preciosParkings";
 import styles from "../page.module.css";
 import { IconoBuscar, IconoInfo, IconoUbicacion } from "../Iconos";
 import Denunciar from "../Denunciar";
@@ -90,7 +91,22 @@ const textoMinutos = (m: number) => (m === 0 ? "ahora" : `${m} min`);
 const escapar = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const categoria = (a: Aparcamiento) =>
-  a.clase === "parquimetro" ? "ora" : a.de_pago === true ? "pago" : a.de_pago === false ? "gratis" : "nd";
+  a.clase === "parquimetro" ? "ora" : a.de_pago === true || tarifaDe(a.id) ? "pago" : a.de_pago === false ? "gratis" : "nd";
+/** Nombre que se muestra: el de la tarifa oficial si la hay, si no el de OpenStreetMap */
+const nombreParking = (a: Aparcamiento) => tarifaDe(a.id)?.nombre ?? (a.nombre ? nombrePropio(a.nombre) : "Aparcamiento");
+
+/** Tabla de precios oficiales del operador, con fuente y fecha de consulta */
+function bloqueTarifa(id: string) {
+  const t = tarifaDe(id);
+  if (!t) return "";
+  const filas = t.tramos.map(([d, p]) => `<span>${escapar(d)}</span><b>${escapar(p)}</b>`).join("");
+  return (
+    `<div class="ficha-tabla">${filas}</div>` +
+    (t.nota ? `<p>💡 ${escapar(t.nota)}</p>` : "") +
+    `<p><small>Fuente: <a href="${escapar(t.fuente)}" target="_blank" rel="noopener">${escapar(t.fuenteNombre)}</a>, ` +
+    `${t.tipoFecha} el ${fechaTarifa(t)}. Puede haber cambiado: comprueba el cartel de la entrada.</small></p>`
+  );
+}
 const comoLlegar = (lat: number, lon: number) =>
   `<a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`;
 
@@ -121,15 +137,26 @@ function fichaAparcamiento(a: Aparcamiento) {
     a.tipo && TIPO_TEXTO[a.tipo] && `🅿️ ${TIPO_TEXTO[a.tipo]}`,
     a.plazas && `🚗 ${a.plazas} plazas${a.plazas_pmr ? ` · ♿ ${a.plazas_pmr}` : ""}`,
     a.horario && `🕒 ${escapar(a.horario.replace("24/7", "Abierto 24 h"))}`,
-    a.precio && `💶 ${escapar(a.precio)}`,
+    a.precio && !tarifaDe(a.id) && `💶 ${escapar(a.precio)}`,
     a.operador && `🏢 ${escapar(a.operador)}`,
     a.acceso === "clientes" && "🛒 Solo para clientes del establecimiento",
   ].filter(Boolean);
   return (
     `<div class="ficha-cab"><span class="marca" style="background:${COLOR[cat]}">P</span>` +
-    `<div><strong>${escapar(a.nombre ? nombrePropio(a.nombre) : "Aparcamiento")}</strong>${etiqueta}</div></div>` +
+    `<div><strong>${escapar(nombreParking(a))}</strong>${etiqueta}</div></div>` +
+    bloqueTarifa(a.id) +
     (filas.length ? filas.map((f) => `<p>${f}</p>`).join("") : `<p>Aún no tenemos más datos de este aparcamiento.</p>`) +
     comoLlegar(a.lat, a.lon)
+  );
+}
+
+/** Tarifa oficial de la ORA de Alicante para el tipo de tramo (azul, media estancia o naranja) */
+function tarifaOraAlicante(tipo: Zona["tipo"]) {
+  const t = ORA_ALICANTE.tipos[tipo === "larga" ? 1 : tipo === "mixta" ? 2 : 0];
+  return (
+    `<div class="ficha-tarifas"><div><span style="background:${t.color}"></span><b>${t.nombre}</b><br>` +
+    `<small>${t.precio} · ${t.maximo}<br>${t.horario}</small></div></div>` +
+    `<p><small>${ORA_ALICANTE.avisos} Tarifas: <a href="${ORA_ALICANTE.fuente}" target="_blank" rel="noopener">web oficial de la ORA</a>.</small></p>`
   );
 }
 
@@ -143,7 +170,8 @@ function fichaZona(z: Zona) {
     `<div><strong>${escapar(titulo)}</strong><small>${escapar(z.calle ?? z.ciudad)}</small></div></div>` +
     `<p>${t.texto}</p>` +
     (z.plazas && z.plazas > 1 ? `<p>🚗 ${z.plazas} plazas en este tramo</p>` : "") +
-    (z.tipo !== "libre" ? `<p>💶 Consulta la tarifa y el horario en el parquímetro o en la app de pago de ${escapar(z.ciudad)}.</p>` : "") +
+    (z.ciudad === "Alicante" ? tarifaOraAlicante(z.tipo)
+      : z.tipo !== "libre" ? `<p>💶 Consulta la tarifa y el horario en el parquímetro o en la app de pago de ${escapar(z.ciudad)}.</p>` : "") +
     `<p><small>Fuente: ${escapar(z.fuente)}. Las señales de la calle mandan sobre este mapa.</small></p>` +
     comoLlegar(z.lat, z.lon)
   );
@@ -399,7 +427,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         geometry: z.lat2 != null && z.lon2 != null
           ? { type: "LineString", coordinates: [[z.lon, z.lat], [z.lon2, z.lat2]] }
           : { type: "Point", coordinates: [z.lon, z.lat] },
-        properties: { id: z.id, color: COLOR_CALLE[z.color] ?? COLOR.ora },
+        properties: { id: z.id, color: COLOR_CALLE[z.color] ?? COLOR.ora, lado: z.id.includes("~p") ? 1 : z.id.includes("~i") ? -1 : 0 },
       })),
     });
   }, [db, calcularCerca]);
@@ -502,6 +530,8 @@ export default function BuscarPlaza(config: ConfigSupabase) {
           paint: {
             "line-color": ["get", "color"],
             "line-width": ["interpolate", ["linear"], ["zoom"], 14, 3, 18, 9],
+            // Tramos con cada lado de un tipo distinto: uno a cada lado del eje de la calle
+            "line-offset": ["interpolate", ["linear"], ["zoom"], 14, ["*", ["get", "lado"], 1.5], 18, ["*", ["get", "lado"], 4.5]],
             "line-opacity": 0.75,
           },
         });
@@ -933,10 +963,10 @@ export default function BuscarPlaza(config: ConfigSupabase) {
                 <button type="button" className={styles.destinoItem} onClick={() => verParking(a)}>
                   <span className={styles.destinoMarca} style={{ background: COLOR[cat] }}>P</span>
                   <span>
-                    <b>{a.nombre ? nombrePropio(a.nombre) : "Aparcamiento"}</b>
+                    <b>{nombreParking(a)}</b>
                     <small>
                       🚶 {minAndando(m)} min ·{" "}
-                      {cat === "pago" ? "De pago" : cat === "gratis" ? "Gratis" : "Precio sin confirmar"}
+                      {tarifaDe(a.id) ? resumenTarifa(tarifaDe(a.id)!) : cat === "pago" ? "De pago" : cat === "gratis" ? "Gratis" : "Precio sin confirmar"}
                       {a.plazas ? ` · ${a.plazas} plazas` : ""}
                     </small>
                   </span>
@@ -973,8 +1003,9 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         <IconoInfo tam={18} />
         <span>
           Parkings y parquímetros: © colaboradores de OpenStreetMap. Calles de zona regulada: datos abiertos de los
-          ayuntamientos de Madrid, Barcelona (B:SM) y València (CC BY 4.0). Muy pronto: <b>precios de los parkings</b> y{" "}
-          <b>más ciudades</b>.
+          ayuntamientos de Madrid, Barcelona (B:SM) y València (CC BY 4.0); en Alicante, decretos municipales publicados en
+          el BOP dibujados sobre OpenStreetMap. Precios de parkings: solo de las webs oficiales de cada operador, con su fecha (de momento,
+          algunos de Alicante; iremos sumando más).
         </span>
       </div>
     </>

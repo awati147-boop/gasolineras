@@ -138,6 +138,9 @@ button { font: inherit; }
 .ficha-tarifas div { position: relative; padding-left: 16px; line-height: 1.35; }
 .ficha-tarifas span { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%; }
 .ficha-tarifas small { color: var(--sub); }
+.ficha-tabla { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 4px 18px; margin: 10px 0 6px; font-variant-numeric: tabular-nums; }
+.ficha-tabla span { color: var(--sub); }
+.ficha-tabla b { text-align: right; }
 .cabecera-acciones { display: flex; gap: 2px; }
 
 /* ===== Aviso para instalar la app ===== */

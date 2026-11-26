@@ -11,8 +11,10 @@ Stack (todo en plan gratuito):
   Worker; el script aparta .env.local al compilar y no sube nada si se cuela una clave. Variables y secretos de la web
   publicada: en Cloudflare (Worker → Settings → Variables and Secrets), los secretos como "Secret".
 - Tareas automáticas con GitHub Actions: precios cada 2 h (`npm run importar`),
-  aparcamientos de OSM cada lunes (`npm run importar-aparcamientos`).
-- Ramas: `main` = web publicada (solo gasolineras). `parking` = pestañas Aparcar / Me voy (en desarrollo).
+  aparcamientos de OSM cada lunes (`npm run importar-aparcamientos`), zonas reguladas cada martes (`importar-zonas`:
+  Madrid, Barcelona, Valencia y Alicante), cargadores cada día.
+- Ramas: `main` = web publicada con todo. Cloudflare compila y publica SOLO cada push a `main` (Workers Builds):
+  no subir a `main` nada a medias. `garajes` = rama de trabajo (mantenerla igual que `main`).
 
 Datos:
 - Carburantes: API REST gratuita del Ministerio para la Transición Ecológica (coma decimal; `scripts/importar.mts`).
@@ -22,7 +24,10 @@ Datos:
 - Puntos de recarga eléctrica: datos oficiales MITECO vía DGT (NAP, DATEX II, `scripts/importar-cargadores.mts`, cada día;
   tabla `cargadores` en `supabase/cargadores.sql`). Sin precios (el Ministerio aún no los publica en abierto).
   En la pestaña Gasolina, chip "⚡ Eléctrico" (`/api/cargadores`, `src/lib/cargadores.ts`).
-- Tarifas ORA de Alicante: `src/lib/ora.ts` (fuente oragruaalicante.es). Las calles de la ORA no están publicadas.
+- Tarifas ORA de Alicante: `src/lib/ora.ts` (fuente oragruaalicante.es). Calles de la ORA: no hay mapa oficial; salen de los
+  decretos del BOP (sector Mercado 1B 2018, sector 7 Carolinas 2021) y de la relación de calles del centro (2006), en
+  `scripts/datos/ora-alicante.json`. `importar-zonas` (código `ali`) las dibuja sobre las calles de OSM (name:es/old_name).
+  Revisar cuando arranque el nuevo contrato de la ORA (licitado en 2026: más zona naranja en Benalúa, Alipark, Princesa Mercedes).
 - Precios de parkings: solo de webs oficiales de operadores, siempre con fuente y fecha. No copiar webs de reservas.
 - Esquemas SQL en `supabase/` (idempotentes: se pueden volver a ejecutar enteros). Orden: schema, plazas, aparcamientos,
   zonas, garajes, reservas, avisos, pagos, denuncias, valoraciones, cargadores (+ los `*.local.sql` con claves, que no se suben).
@@ -45,7 +50,10 @@ Fases de producto (en este orden, un paso cada vez):
 3. 🚗 Me voy: hecho (rama parking). Usuario anónimo, la plaza caduca a los 10 min, límite 1 cada 2 min,
    nadie puede leer quién la dejó (`supabase/plazas.sql`).
 4. 🅿️ Aparcar: plazas libres (consulta cada 15 s), parkings y parquímetros de OSM con filtros: hecho (rama parking).
-   Pendiente: precios de parkings con fuente/fecha, "dinos cuánto pagaste", calles ORA, avisos push, toda España.
+   Parkings de toda España: hecho (importador semanal, 52 provincias). Precios de parkings: a mano en
+   `src/lib/preciosParkings.ts` (id de OSM + tramos + fuente oficial + fecha); hoy Interparking Puerto y Poniente.
+   Saba y Aena no publican tarifas en sus fichas; Telpark y Vectalia bloquean la lectura automática.
+   Pendiente: más precios, "dinos cuánto pagaste", avisos push.
    Lanzar primero solo en Alicante (hacen falta muchos usuarios en la misma zona).
 5. 🏠 Garajes, fase A: anuncios de alquiler por horas/días SIN pagos en la app (contacto directo). Requiere cuentas.
 6. 🏠 Garajes, fase B: reservas con pago (Stripe Connect; 3 % al dueño + tarifa al conductor 10 %, mín. 0,50 €).
