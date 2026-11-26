@@ -230,11 +230,12 @@ export const TARIFAS_ZONA_AZUL: TarifaCiudad[] = [
     servicio: "ORA",
     zona: [-5.89, 43.34, -5.81, 43.39],
     tipos: [
-      { nombre: "Zona azul", color: AZUL, precio: "0,90 € 1 h", maximo: "Máx. 2 h (1,80 €)" },
+      { nombre: "Zona azul (tarifa normal)", color: AZUL, precio: "0,90 € 1 h (mín. 0,15 €)", maximo: "Máx. 2 h (1,80 €)" },
+      { nombre: "Zona verde (tarifa reducida)", color: VERDE, precio: "0,65 € 1 h", maximo: "Máx. 6 h (3,90 €)" },
     ],
-    notas: "Domingos y festivos, gratis.",
-    fuente: "https://www.oviedo.es/zonazul",
-    fuenteNombre: "Ordenanza fiscal nº 123 del Ayuntamiento de Oviedo",
+    notas: "L–V 9–14 y 16:30–20 · S 9–14. Domingos y festivos, gratis.",
+    fuente: "https://www.oviedo.es/documents/35133/1461ddb3-431d-4970-bf13-c8fb6f944fbd",
+    fuenteNombre: "Ordenanza fiscal nº 123 del Ayuntamiento de Oviedo (2026)",
     fecha: "2026-11-26",
   },
   {
@@ -261,17 +262,6 @@ export const TARIFAS_ZONA_AZUL: TarifaCiudad[] = [
     notas: "L–V 9–14 y 16–20 · S 9–14.",
     fuente: "https://aytosalamanca.es/en/w/o.r.a.",
     fuenteNombre: "web del Ayuntamiento de Salamanca (ordenanza fiscal nº 38)",
-    fecha: "2026-11-26",
-  },
-  {
-    ciudad: "Burgos",
-    servicio: "ORA",
-    zona: [-3.74, 42.32, -3.66, 42.36],
-    tipos: [
-      { nombre: "Zona ORA", color: AZUL, precio: "Desde 0,20 € (18 min)", maximo: "Máx. 2 h (1,40 €)" },
-    ],
-    fuente: "http://www.aytoburgos.es/movilidad-y-transporte/preguntas-frecuentes/cuales-son-las-tarifas-para-estacionar-mi-vehiculo-en-una-calle-perteneciente-a-la-z",
-    fuenteNombre: "web del Ayuntamiento de Burgos (ordenanza nº 215)",
     fecha: "2026-11-26",
   },
   {

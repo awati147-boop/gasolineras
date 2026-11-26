@@ -1,0 +1,43 @@
+# Comprueba cada mes si han cambiado las fuentes oficiales de las tarifas que muestra la app
+# (zona azul por ciudad y precios de parkings). No cambia nada: si algo cambia, abre un aviso (issue)
+# para revisarlo a mano. No usa secrets de Supabase.
+name: Vigilar tarifas
+
+on:
+  schedule:
+    - cron: "0 7 1 * *" # el día 1 de cada mes a las 07:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vigilar-tarifas
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Instalar pdftotext
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      - name: Comparar las fuentes con la última revisión
+        run: node scripts/vigilar-tarifas.mts --informe=informe.md
+      - name: Abrir o actualizar el aviso si hay algo que revisar
+        if: hashFiles('informe.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          titulo="Revisar tarifas (precio orientativo)"
+          abierto=$(gh issue list --state open --search "\"$titulo\" in:title" --json number --jq '.[0].number')
+          if [ -n "$abierto" ]; then
+            gh issue comment "$abierto" --body-file informe.md
+          else
+            gh issue create --title "$titulo" --body-file informe.md
+          fi
