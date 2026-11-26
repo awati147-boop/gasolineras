@@ -286,6 +286,42 @@ export const TARIFAS_ZONA_AZUL: TarifaCiudad[] = [
     fuenteNombre: "web municipal de turismo de Santander",
     fecha: "2026-11-26",
   },
+  {
+    ciudad: "Palencia",
+    servicio: "ORA",
+    zona: [-4.56, 41.98, -4.5, 42.03],
+    tipos: [
+      { nombre: "Zona ORA", color: AZUL, precio: "0,76 € 1 h (mín. 0,30 € / 30 min)", maximo: "Máx. 2 h (1,72 €)" },
+    ],
+    fuente: "https://www.aytopalencia.es/sites/default/files/OF%20N%C2%BA209%20Ordenanza%20fiscal%20reguladora%20de%20la%20tasa%20por%20estacionamiento%20de%20veh%C3%ADculos%20en%20las%20zonas%20reguladas%20por%20el%20servicio%20ORA.pdf",
+    fuenteNombre: "Ordenanza fiscal nº 209 de Palencia (modificada en 2024)",
+    fecha: "2026-11-26",
+  },
+  {
+    ciudad: "Lorca",
+    servicio: "ORA",
+    zona: [-1.72, 37.65, -1.67, 37.69],
+    tipos: [
+      { nombre: "Zona azul", color: AZUL, precio: "0,65 € 1 h (0,30 € / 30 min)", maximo: "2 h, 1,45 €" },
+    ],
+    fuente: "https://lorca.es/ordenanzasPDF/2024%20Ordenanza%2013-Tasa%20servicio%20ORA.pdf",
+    fuenteNombre: "Ordenanza fiscal nº 13 de Lorca (vigente desde 2024)",
+    fecha: "2026-11-26",
+  },
+  {
+    ciudad: "Manresa",
+    servicio: "Zona blava",
+    zona: [1.8, 41.71, 1.85, 41.75],
+    tipos: [
+      { nombre: "Zona blava 1", color: AZUL, precio: "1,55 € / h" },
+      { nombre: "Zona blava 2", color: AZUL_CLARO, precio: "1,35 € / h" },
+      { nombre: "Zona verda (no residents)", color: VERDE, precio: "1,35 € / h" },
+    ],
+    notas: "Cero emisiones: 0,75 €/h. Se cobra por minuto.",
+    fuente: "https://web.manresa.cat/media/docs/arxius//ordfisc2026__16.pdf",
+    fuenteNombre: "Ordenança fiscal núm. 16 de Manresa (2026)",
+    fecha: "2026-11-26",
+  },
 ];
 
 /** Tarifa de la ciudad cuyo rectángulo contiene el punto (para un parquímetro) */

@@ -25,9 +25,13 @@ Datos:
   tabla `cargadores` en `supabase/cargadores.sql`). Sin precios (el Ministerio aún no los publica en abierto).
   En la pestaña Gasolina, chip "⚡ Eléctrico" (`/api/cargadores`, `src/lib/cargadores.ts`).
 - Tarifas de la zona azul por ciudad (PRECIO ORIENTATIVO, con fuente oficial y fecha): `src/lib/tarifasZonaAzul.ts`
-  (20 ciudades: Alicante, Madrid, Barcelona, Valencia, Sevilla, Zaragoza, Málaga, Murcia, Bilbao, Valladolid, Palma,
-  Córdoba, Vitoria, Gijón, Granada, Oviedo, Pamplona, Salamanca, Burgos, Santander). Sin fuente oficial con importes:
-  Las Palmas, Vigo, A Coruña, Elche, Donostia, Logroño, León, Castellón, Santa Cruz, Benidorm. Revisar cada enero.
+  (23 ciudades: Alicante, Madrid, Barcelona, Valencia, Sevilla, Zaragoza, Málaga, Murcia, Bilbao, Valladolid, Palma,
+  Córdoba, Vitoria, Gijón, Granada, Oviedo, Pamplona, Salamanca, Burgos, Santander, Palencia, Lorca, Manresa).
+  Buscadas sin fuente oficial con importes (la web remite a la ordenanza pero no publica precios): Las Palmas, Vigo,
+  A Coruña, Elche, Donostia, Logroño, León, Castellón, Santa Cruz, Benidorm, Torrevieja, Orihuela, Alcoy, Dénia,
+  San Vicente, Cádiz, Huelva, Almería, Badajoz, Albacete, Toledo, Tarragona, Lleida, Girona, Cartagena, Santiago, Lugo,
+  Pontevedra, Jerez, Marbella, Algeciras, Sabadell, Terrassa, Badalona, L'Hospitalet, Getafe, Alcalá, Móstoles, Leganés.
+  Ávila: solo ordenanza de 2011 (demasiado vieja). Revisar cada enero.
 - Calles de la ORA de Alicante: no hay mapa oficial; salen de los
   decretos del BOP (sector Mercado 1B 2018, sector 7 Carolinas 2021) y de la relación de calles del centro (2006), en
   `scripts/datos/ora-alicante.json`. `importar-zonas` (código `ali`) las dibuja sobre las calles de OSM (name:es/old_name).
