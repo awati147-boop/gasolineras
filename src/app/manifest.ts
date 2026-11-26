@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
-import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
+import { COLOR_APP, LEMA_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
 
 // Manifiesto de la PWA: permite "Instalar app" / "Añadir a pantalla de inicio"
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: NOMBRE_APP,
     short_name: NOMBRE_CORTO,
-    description: "Las gasolineras más baratas cerca de ti, en un mapa.",
+    description: `${LEMA_APP}, en un mapa.`,
     lang: "es",
     start_url: "/",
     scope: "/",

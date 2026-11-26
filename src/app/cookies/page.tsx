@@ -11,6 +11,8 @@ const ALMACENAMIENTO = [
   { nombre: "Sesión", para: "Mantener tu sesión: anónima para dejar plazas, o tu cuenta.", dura: "Hasta que cierres sesión" },
   { nombre: "Aviso de instalar la app", para: "Recordar que ya lo cerraste, para no volver a mostrarlo.", dura: "Hasta que borres los datos del navegador" },
   { nombre: "Avisos", para: "Recibir los avisos de reservas y mensajes, solo si los activas.", dura: "Hasta que los desactives" },
+  { nombre: "Gasolineras favoritas", para: "Recordar las gasolineras que guardas y el último precio que viste, para decirte si ha bajado. No sale de tu móvil.", dura: "Hasta que las quites" },
+  { nombre: "Dónde aparcaste", para: "Recordar dónde dejaste el coche y hasta qué hora dura el ticket, solo si pulsas «He aparcado aquí». No sale de tu móvil.", dura: "Hasta que lo quites, o 3 días" },
 ];
 
 export default function Cookies() {

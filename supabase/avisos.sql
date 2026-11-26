@@ -96,15 +96,32 @@ declare
   cuando text := to_char(new.inicio at time zone 'Europe/Madrid', 'DD/MM HH24:MI');
 begin
   if tg_op = 'INSERT' then
-    perform avisar(new.propietario, '📩 Nueva solicitud', t || ' · ' || cuando || ' · ' || new.precio || ' €', enlace, 'reserva-' || new.id);
+    -- Con pago en la app, el dueño recibe el aviso cuando el conductor ha pagado (supabase/pagos.sql)
+    if new.con_pago then
+      null;
+    elsif new.estado = 'aceptada' then  -- reserva instantánea: ya está confirmada
+      perform avisar(new.propietario, '📅 Nueva reserva confirmada', t || ' · ' || cuando || ' · ' || new.precio || ' € · ⚡ instantánea', enlace, 'reserva-' || new.id);
+    else
+      perform avisar(new.propietario, '📩 Nueva solicitud', t || ' · ' || cuando || ' · ' || new.precio || ' €', enlace, 'reserva-' || new.id);
+    end if;
   elsif new.estado is distinct from old.estado then
     if new.estado = 'aceptada' then
-      perform avisar(new.conductor, '✅ Reserva aceptada', 'Ya puedes ver la dirección de «' || t || '»', enlace, 'reserva-' || new.id);
+      perform avisar(new.conductor, case when new.instantanea then '✅ Reserva confirmada' else '✅ Reserva aceptada' end,
+                     'Ya puedes ver la dirección de «' || t || '»', enlace, 'reserva-' || new.id);
     elsif new.estado = 'rechazada' then
       perform avisar(new.conductor, 'Reserva rechazada', 'El dueño de «' || t || '» no puede esta vez', enlace, 'reserva-' || new.id);
+    elsif new.estado = 'cancelada' and new.cancelada_por = 'sistema' then
+      -- Cancelada automáticamente (no se pagó a tiempo, el dueño no respondió o no se pudo cobrar)
+      perform avisar(new.conductor, '❌ Reserva cancelada', '«' || t || '» · ' || cuando || ' · No se te ha cobrado nada', enlace, 'reserva-' || new.id);
+      if old.estado = 'aceptada' then
+        perform avisar(new.propietario, '❌ Reserva cancelada', '«' || t || '» · ' || cuando || ' · No se pudo cobrar', enlace, 'reserva-' || new.id);
+      end if;
     elsif new.estado = 'cancelada' then
-      perform avisar(case when new.cancelada_por = 'conductor' then new.propietario else new.conductor end,
-                     '❌ Reserva cancelada', '«' || t || '» · ' || cuando, enlace, 'reserva-' || new.id);
+      -- Con pago en la app, el dueño no se enteró de la solicitud si no llegó a pagarse: no se le avisa
+      if not (new.cancelada_por = 'conductor' and new.con_pago and coalesce(estado_pago(new.id), 'por_pagar') = 'por_pagar') then
+        perform avisar(case when new.cancelada_por = 'conductor' then new.propietario else new.conductor end,
+                       '❌ Reserva cancelada', '«' || t || '» · ' || cuando, enlace, 'reserva-' || new.id);
+      end if;
     end if;
   end if;
   return null;

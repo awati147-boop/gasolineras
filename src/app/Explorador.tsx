@@ -8,6 +8,8 @@ import { distintivo } from "@/lib/marcas";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { nombrePropio } from "@/lib/texto";
 import { IconoBuscar, IconoPin, IconoSurtidor, IconoUbicacion } from "./Iconos";
+import { MAX_FAVORITAS, alternarFavorita, esFavorita } from "@/lib/favoritas";
+import MisGasolineras from "./MisGasolineras";
 
 const CARBURANTES = [
   { id: "Gasolina 95 E5", nombre: "Gasolina 95" },
@@ -191,7 +193,9 @@ export default function Explorador() {
           const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
           const d = distintivo(g.rotulo);
           const nombreCarb = CARBURANTES.find((x) => x.id === carburanteRef.current)?.nombre ?? "";
-          new maplibregl.Popup({ offset: 12, maxWidth: "300px", className: "ficha" })
+          const id = Number(g.id);
+          const textoFav = () => (esFavorita(id) ? "★ Guardada" : "☆ Guardar");
+          const popup = new maplibregl.Popup({ offset: 12, maxWidth: "300px", className: "ficha" })
             .setLngLat([lon, lat])
             .setHTML(
               `<div class="ficha-cab">
@@ -201,9 +205,21 @@ export default function Explorador() {
                <div class="ficha-precio"><b>${euros(Number(g.precio))} €</b><span>/l · ${escapar(nombreCarb)}</span></div>
                <p>📍 ${escapar(nombrePropio(g.direccion))}</p>
                <p>🕒 ${escapar(g.horario)}</p>
-               <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
+               <div class="ficha-botones">
+                 <button type="button" class="ficha-fav" aria-pressed="${esFavorita(id)}">${textoFav()}</button>
+                 <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>
+               </div>`,
             )
             .addTo(m);
+          // ☆ Guardar: en "Mis gasolineras" (solo en este móvil)
+          const boton = popup.getElement().querySelector<HTMLButtonElement>(".ficha-fav");
+          boton?.addEventListener("click", () => {
+            const guardada = alternarFavorita({ id, rotulo: g.rotulo, localidad: g.localidad });
+            boton.textContent = !guardada && !esFavorita(id) && boton.getAttribute("aria-pressed") === "false"
+              ? `Máximo ${MAX_FAVORITAS} guardadas`
+              : textoFav();
+            boton.setAttribute("aria-pressed", String(esFavorita(id)));
+          });
         };
         for (const capa of ["etiquetas", "puntos"]) {
           m.on("click", capa, abrirFicha);
@@ -307,6 +323,15 @@ export default function Explorador() {
           </button>
         ))}
       </nav>
+
+      <MisGasolineras
+        carburante={carburante}
+        nombreCarburante={CARBURANTES.find((x) => x.id === carburante)?.nombre ?? ""}
+        onVer={(p) => {
+          mapaRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 15 });
+          contenedor.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }}
+      />
 
       {error && <p className={styles.error}>{error}</p>}
 

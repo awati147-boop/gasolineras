@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Configuración local con secretos (no subir)
 *.local.sql
+
+# Vídeos de referencia (no subir)
+*.mp4

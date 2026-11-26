@@ -1,4 +1,9 @@
 // Utilidades compartidas de garajes (navegador)
+import type { Horario } from "./disponibilidad";
+
+/** Columnas públicas de un garaje (para los select) */
+export const COLUMNAS_GARAJE =
+  "id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, horario, bloqueados, instantanea, nota, num_valoraciones, altura_max, acceso, enchufe, foto, fotos, lat_aprox, lon_aprox, activo, creado";
 
 export type Garaje = {
   id: string;
@@ -8,7 +13,12 @@ export type Garaje = {
   precio_hora: number | null;
   precio_dia: number | null;
   precio_mes: number | null;
-  disponibilidad: string | null;
+  disponibilidad: string | null; // nota libre del dueño sobre el horario
+  horario: Horario | null; // horario semanal (null = siempre disponible)
+  bloqueados: string[]; // días sueltos no disponibles ("2026-12-24")
+  instantanea: boolean; // reserva instantánea: las solicitudes dentro del horario se aceptan solas
+  nota: number | null; // media de las valoraciones de los conductores (1–5)
+  num_valoraciones: number;
   altura_max: number | null;
   acceso: "mando" | "llave" | "codigo" | "libre" | null;
   enchufe: boolean;
@@ -19,6 +29,16 @@ export type Garaje = {
   activo: boolean;
   creado: string;
 };
+
+/** "★★★★☆" */
+export const estrellasTexto = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
+
+/** "⭐ 4,8 (12)"; null si aún no tiene valoraciones */
+export const textoNota = (nota: number | null | undefined, num: number | null | undefined) =>
+  num && nota != null ? `⭐ ${Number(nota).toFixed(1).replace(".", ",")} (${num})` : null;
+
+/** Antelación mínima para que una reserva instantánea se acepte sola (como en supabase/garajes.sql) */
+export const ANTELACION_INSTANTANEA_H = 2;
 
 export const ACCESOS: Record<string, string> = {
   mando: "Mando a distancia",

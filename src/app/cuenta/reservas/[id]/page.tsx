@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { pagosActivos } from "@/lib/pagosApi";
 import styles from "../../../page.module.css";
 import DetalleReserva from "./DetalleReserva";
 
@@ -14,6 +15,7 @@ export default async function Reserva({ params }: { params: Promise<{ id: string
         reservaId={id}
         url={process.env.SUPABASE_URL ?? ""}
         clave={process.env.SUPABASE_PUBLISHABLE_KEY ?? ""}
+        pagos={pagosActivos()}
       />
     </main>
   );

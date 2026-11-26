@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { pagosActivos } from "@/lib/pagosApi";
 import styles from "../page.module.css";
 import MiCuenta from "./MiCuenta";
 
@@ -13,6 +14,7 @@ export default async function Cuenta() {
         url={process.env.SUPABASE_URL ?? ""}
         clave={process.env.SUPABASE_PUBLISHABLE_KEY ?? ""}
         vapid={process.env.VAPID_PUBLIC_KEY ?? ""}
+        pagos={pagosActivos()}
       />
     </main>
   );

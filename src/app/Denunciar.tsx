@@ -12,7 +12,7 @@ const MOTIVOS: [string, string][] = [
 ];
 
 /** Enlace "Denunciar" que despliega un pequeño formulario */
-export default function Denunciar({ tipo, objetoId, ...config }: ConfigSupabase & { tipo: "garaje" | "reserva"; objetoId: string }) {
+export default function Denunciar({ tipo, objetoId, ...config }: ConfigSupabase & { tipo: "garaje" | "reserva" | "valoracion"; objetoId: string }) {
   const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [abierto, setAbierto] = useState(false);
   const [motivo, setMotivo] = useState("estafa");
@@ -36,12 +36,12 @@ export default function Denunciar({ tipo, objetoId, ...config }: ConfigSupabase 
   }
 
   if (estado === "hecho") {
-    return <p className="denuncia-hecha">Gracias. Revisaremos {tipo === "garaje" ? "el anuncio" : "la conversación"} lo antes posible.</p>;
+    return <p className="denuncia-hecha">Gracias. Revisaremos {tipo === "garaje" ? "el anuncio" : tipo === "valoracion" ? "la opinión" : "la conversación"} lo antes posible.</p>;
   }
   if (!abierto) {
     return (
       <button type="button" className="denunciar-enlace" onClick={() => setAbierto(true)}>
-        ⚑ Denunciar {tipo === "garaje" ? "anuncio" : "conversación"}
+        ⚑ Denunciar {tipo === "garaje" ? "anuncio" : tipo === "valoracion" ? "opinión" : "conversación"}
       </button>
     );
   }

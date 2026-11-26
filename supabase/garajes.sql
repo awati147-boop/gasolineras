@@ -152,3 +152,123 @@ create or replace function mis_garajes() returns setof garajes
 language sql stable security definer set search_path = public as $$
   select * from garajes where propietario = auth.uid() order by creado desc
 $$;
+
+-- ---------- Calendario: horario semanal y días bloqueados ----------
+-- horario: 7 elementos (de lunes a domingo); cada uno null (ese día no se alquila) o [desde, hasta] en
+-- minutos desde las 00:00, en múltiplos de 15 (hasta = 1440 es medianoche). horario null = disponible siempre.
+-- bloqueados: días sueltos en los que no se alquila (vacaciones, lo usa el dueño...).
+-- Las mismas reglas están en src/lib/disponibilidad.ts para la pantalla.
+create or replace function horario_valido(h jsonb) returns boolean
+language plpgsql immutable as $$
+declare
+  e jsonb;
+  hay_alguno boolean := false;
+begin
+  if h is null then return true; end if;
+  if jsonb_typeof(h) <> 'array' or jsonb_array_length(h) <> 7 then return false; end if;
+  for e in select value from jsonb_array_elements(h) loop
+    continue when jsonb_typeof(e) = 'null';
+    if jsonb_typeof(e) <> 'array' or jsonb_array_length(e) <> 2
+       or jsonb_typeof(e -> 0) <> 'number' or jsonb_typeof(e -> 1) <> 'number' then
+      return false;
+    end if;
+    if (e ->> 0)::numeric < 0 or (e ->> 1)::numeric > 1440 or (e ->> 0)::numeric >= (e ->> 1)::numeric
+       or (e ->> 0)::numeric % 15 <> 0 or (e ->> 1)::numeric % 15 <> 0 then
+      return false;
+    end if;
+    hay_alguno := true;
+  end loop;
+  return hay_alguno;  -- al menos un día disponible
+end $$;
+
+alter table garajes add column if not exists horario jsonb;
+alter table garajes add column if not exists bloqueados date[] not null default '{}';
+alter table garajes drop constraint if exists garajes_horario_valido;
+alter table garajes add constraint garajes_horario_valido check (horario_valido(horario));
+alter table garajes drop constraint if exists garajes_max_bloqueados;
+alter table garajes add constraint garajes_max_bloqueados check (cardinality(bloqueados) <= 400);
+grant select (horario, bloqueados) on garajes to anon, authenticated;
+grant insert (horario, bloqueados), update (horario, bloqueados) on garajes to authenticated;
+
+-- Los días bloqueados se guardan ordenados, sin repetir y sin los que ya han pasado
+create or replace function garajes_ordenar_bloqueados() returns trigger
+language plpgsql as $$
+begin
+  new.bloqueados := array(select distinct b from unnest(coalesce(new.bloqueados, '{}')) b
+                          where b >= current_date - 1 order by b);
+  return new;
+end $$;
+drop trigger if exists garajes_ordenar_bloqueados on garajes;
+create trigger garajes_ordenar_bloqueados before insert or update of bloqueados on garajes
+  for each row execute function garajes_ordenar_bloqueados();
+
+-- Zona horaria del garaje: Canarias va una hora por detrás de la península
+create or replace function zona_garaje(lon double precision) returns text
+language sql immutable as $$
+  select case when lon < -12 then 'Atlantic/Canary' else 'Europe/Madrid' end
+$$;
+
+-- ¿Está el garaje disponible durante todo [p_inicio, p_fin)? (horario semanal y días bloqueados)
+-- La usa supabase/reservas.sql al crear cada solicitud.
+create or replace function garaje_disponible(id_garaje uuid, p_inicio timestamptz, p_fin timestamptz) returns boolean
+language plpgsql stable security definer set search_path = public as $$
+declare
+  g garajes%rowtype;
+  zona text;
+  t timestamptz := p_inicio;
+  siguiente timestamptz;
+  local_ts timestamp;
+  dia date;
+  tramo jsonb;
+  minuto numeric;
+  vueltas int := 0;
+begin
+  select * into g from garajes where id = id_garaje;
+  if not found or p_fin <= p_inicio then return false; end if;
+  zona := zona_garaje(g.lon_aprox);
+  if exists (
+    select 1 from unnest(g.bloqueados) b
+    where b between (p_inicio at time zone zona)::date and ((p_fin - interval '1 second') at time zone zona)::date
+  ) then
+    return false;
+  end if;
+  if g.horario is null then return true; end if;
+  -- Avanza tramo a tramo: cada momento de la reserva tiene que caer dentro del horario de su día
+  while t < p_fin loop
+    vueltas := vueltas + 1;
+    if vueltas > 400 then return false; end if;
+    local_ts := t at time zone zona;
+    dia := local_ts::date;
+    tramo := g.horario -> (extract(isodow from dia)::int - 1);
+    if tramo is null or jsonb_typeof(tramo) <> 'array' then return false; end if;
+    minuto := extract(epoch from (local_ts - dia::timestamp)) / 60;
+    if minuto < (tramo ->> 0)::numeric or minuto >= (tramo ->> 1)::numeric then return false; end if;
+    siguiente := (dia::timestamp + make_interval(mins => (tramo ->> 1)::int)) at time zone zona;
+    if siguiente <= t then return false; end if;
+    t := siguiente;
+  end loop;
+  return true;
+end $$;
+revoke all on function garaje_disponible(uuid, timestamptz, timestamptz) from public, anon, authenticated;
+
+-- ---------- Reserva instantánea ----------
+-- Si el dueño la activa, las solicitudes dentro de su horario quedan aceptadas solas (supabase/reservas.sql;
+-- con pago en la app, al retenerse el pago: supabase/pagos.sql). Las que empiezan muy pronto siguen siendo solicitud.
+alter table garajes add column if not exists instantanea boolean not null default false;
+grant select (instantanea) on garajes to anon, authenticated;
+grant insert (instantanea), update (instantanea) on garajes to authenticated;
+
+-- ---------- Nota media (la mantiene supabase/valoraciones.sql; nadie puede cambiarla a mano) ----------
+alter table garajes add column if not exists nota numeric(2,1);
+alter table garajes add column if not exists num_valoraciones int not null default 0;
+grant select (nota, num_valoraciones) on garajes to anon, authenticated;
+
+-- Antelación mínima para aceptar sola una reserva (el dueño necesita tiempo para dar el mando o la llave)
+create or replace function antelacion_instantanea() returns interval
+language sql immutable as $$ select interval '2 hours' $$;
+
+-- Se recrea para incluir las columnas nuevas
+create or replace function mis_garajes() returns setof garajes
+language sql stable security definer set search_path = public as $$
+  select * from garajes where propietario = auth.uid() order by creado desc
+$$;

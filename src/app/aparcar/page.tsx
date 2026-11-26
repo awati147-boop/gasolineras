@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import styles from "../page.module.css";
 import BuscarPlaza from "./BuscarPlaza";
+import MiCoche from "../MiCoche";
 
 export const metadata: Metadata = { title: "Aparcar" };
 
@@ -11,6 +12,7 @@ export default async function Aparcar() {
     <main className={styles.main}>
       <h1 className={styles.titulo}>Aparca sin dar vueltas</h1>
       <p className={styles.fecha}>Plazas que otros conductores acaban de dejar libres</p>
+      <MiCoche />
       <BuscarPlaza url={process.env.SUPABASE_URL ?? ""} clave={process.env.SUPABASE_PUBLISHABLE_KEY ?? ""} />
     </main>
   );
