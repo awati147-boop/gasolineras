@@ -6,6 +6,7 @@ export type MiCoche = {
   lon: number;
   aparcado: string; // ISO
   ticketHasta?: string | null; // ISO, fin del ticket de la ORA o del parquímetro
+  precision?: number | null; // metros (lo que dice el GPS); null = colocado a mano en el mapa
   avisado?: boolean; // ya se avisó de que quedan 10 min
 };
 
@@ -49,6 +50,46 @@ export function alCambiarCoche(fn: (c: MiCoche | null) => void) {
     window.removeEventListener("storage", otraPestana);
   };
 }
+
+/** Precisión a partir de la cual avisamos de que conviene comprobar el sitio en el mapa */
+export const PRECISION_MALA_M = 100;
+
+/**
+ * Posición lo más precisa posible: escucha el GPS unos segundos y se queda con la mejor lectura.
+ * (La primera que da el móvil suele venir del wifi o la red y puede fallar por cientos de metros.)
+ * Termina antes si llega una lectura buena (±20 m). Solo se usa en el navegador.
+ */
+export function localizarPreciso(alAvanzar?: (precisionM: number) => void, { maxMs = 12000, buenaM = 20 } = {}) {
+  return new Promise<{ lat: number; lon: number; precision: number }>((ok, mal) => {
+    let mejor: GeolocationPosition | null = null;
+    let hecho = false;
+    let id = -1;
+    const terminar = (error?: Error) => {
+      if (hecho) return;
+      hecho = true;
+      navigator.geolocation.clearWatch(id);
+      clearTimeout(espera);
+      if (mejor) ok({ lat: mejor.coords.latitude, lon: mejor.coords.longitude, precision: Math.round(mejor.coords.accuracy) });
+      else mal(error ?? new Error("No se ha podido obtener tu ubicación."));
+    };
+    const espera = setTimeout(() => terminar(), maxMs);
+    id = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (!mejor || pos.coords.accuracy < mejor.coords.accuracy) mejor = pos;
+        alAvanzar?.(Math.round(mejor.coords.accuracy));
+        if (mejor.coords.accuracy <= buenaM) terminar();
+      },
+      (e) => {
+        // Sin permiso no hay nada que esperar; otros fallos (sin señal todavía) se reintentan hasta el límite
+        if (e.code === e.PERMISSION_DENIED) terminar(new Error("Sin permiso de ubicación: actívalo para este navegador."));
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: maxMs },
+    );
+  });
+}
+
+/** Pide al mapa de Aparcar que enseñe el coche (si estás en otra pantalla, se usa /aparcar#coche) */
+export const verCocheEnMapa = () => window.dispatchEvent(new Event("ver-coche"));
 
 /** Distancia en metros entre dos puntos (aproximada, suficiente para "a 300 m") */
 export function distanciaM(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {

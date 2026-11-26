@@ -12,7 +12,7 @@ import { nombrePropio } from "@/lib/texto";
 import styles from "../page.module.css";
 import { IconoBuscar, IconoInfo, IconoUbicacion } from "../Iconos";
 import Denunciar from "../Denunciar";
-import { alCambiarCoche, leerCoche, type MiCoche } from "@/lib/miCoche";
+import { alCambiarCoche, guardarCoche, leerCoche, type MiCoche } from "@/lib/miCoche";
 import { ACCESOS, COLUMNAS_GARAJE, textoNota, textoPrecio, urlFoto, type Garaje } from "@/lib/garajes";
 import { resumenHorario } from "@/lib/disponibilidad";
 
@@ -456,11 +456,30 @@ export default function BuscarPlaza(config: ConfigSupabase) {
         const el = document.createElement("div");
         el.className = "marca-coche";
         el.textContent = "🚗";
-        el.title = "Tu coche";
-        marcaCoche = new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
+        el.title = "Tu coche (arrástralo si no está en su sitio)";
+        marcaCoche = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([c.lon, c.lat]).addTo(m);
+        // Corregir a mano: arrastrar el coche a donde está de verdad
+        marcaCoche.on("dragend", () => {
+          const actual = leerCoche();
+          const p = marcaCoche?.getLngLat();
+          if (actual && p) guardarCoche({ ...actual, lat: p.lat, lon: p.lng, precision: null });
+        });
+      };
+      const verCoche = () => {
+        const c = leerCoche();
+        if (!c) return;
+        m.flyTo({ center: [c.lon, c.lat], zoom: 17, maxDuration: 2000 });
+        contenedor.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       };
       pintarCoche(leerCoche());
-      dejarDeEscucharCoche = alCambiarCoche(pintarCoche);
+      const dejarDeEscucharCambios = alCambiarCoche(pintarCoche);
+      window.addEventListener("ver-coche", verCoche);
+      dejarDeEscucharCoche = () => {
+        dejarDeEscucharCambios();
+        window.removeEventListener("ver-coche", verCoche);
+      };
+      // Desde Me voy se llega con /aparcar#coche
+      if (location.hash === "#coche") m.once("load", verCoche);
       m.addControl(new maplibregl.FullscreenControl(), "top-right");
       // La ubicación solo se usa en el navegador para centrar el mapa; no se envía ni se guarda.
       const geo = new maplibregl.GeolocateControl({

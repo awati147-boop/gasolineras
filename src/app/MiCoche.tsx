@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AVISO_MIN, alCambiarCoche, alarmaTicket, guardarCoche, leerCoche, type MiCoche as Coche } from "@/lib/miCoche";
+import {
+  AVISO_MIN, PRECISION_MALA_M, alCambiarCoche, alarmaTicket, guardarCoche, leerCoche, localizarPreciso, verCocheEnMapa,
+  type MiCoche as Coche,
+} from "@/lib/miCoche";
 import styles from "./page.module.css";
 
 const hora = (d: Date) => d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
@@ -17,6 +20,7 @@ export default function MiCoche({ enMeVoy = false }: { enMeVoy?: boolean }) {
   const [coche, setCoche] = useState<Coche | null | undefined>(undefined); // undefined = aún sin leer
   const [ahora, setAhora] = useState(() => Date.now());
   const [estado, setEstado] = useState<"" | "localizando">("");
+  const [precisionAhora, setPrecisionAhora] = useState<number | null>(null); // mientras se busca la señal
   const [error, setError] = useState("");
   const [otraHora, setOtraHora] = useState("");
 
@@ -48,21 +52,20 @@ export default function MiCoche({ enMeVoy = false }: { enMeVoy?: boolean }) {
     return () => clearInterval(t);
   }, []);
 
-  function aparcarAqui() {
+  async function aparcarAqui() {
     setError("");
     if (!navigator.geolocation) return setError("Tu navegador no permite obtener la ubicación.");
     setEstado("localizando");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setEstado("");
-        guardarCoche({ lat: pos.coords.latitude, lon: pos.coords.longitude, aparcado: new Date().toISOString(), ticketHasta: null });
-      },
-      () => {
-        setEstado("");
-        setError("No se ha podido obtener tu ubicación. Revisa que el navegador tenga permiso.");
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
+    setPrecisionAhora(null);
+    try {
+      // Espera unos segundos a la señal del GPS y se queda con la lectura más precisa
+      const p = await localizarPreciso(setPrecisionAhora);
+      guardarCoche({ lat: p.lat, lon: p.lon, precision: p.precision, aparcado: new Date().toISOString(), ticketHasta: null });
+    } catch (e) {
+      setError((e as Error).message || "No se ha podido obtener tu ubicación. Revisa que el navegador tenga permiso.");
+    } finally {
+      setEstado("");
+    }
   }
 
   function ponerTicket(hasta: Date) {
@@ -105,7 +108,9 @@ export default function MiCoche({ enMeVoy = false }: { enMeVoy?: boolean }) {
         </div>
         {error && <p className={styles.error}>{error}</p>}
         <button type="button" className={`${styles.boton} ${styles.botonAncho}`} onClick={aparcarAqui} disabled={estado === "localizando"}>
-          {estado === "localizando" ? "Buscando tu ubicación…" : "📍 He aparcado aquí"}
+          {estado === "localizando"
+            ? `Buscando señal GPS…${precisionAhora !== null ? ` ±${precisionAhora} m` : ""}`
+            : "📍 He aparcado aquí"}
         </button>
         <p className={styles.notaPrivacidad}>📱 Se guarda solo en este móvil.</p>
       </section>
@@ -116,7 +121,9 @@ export default function MiCoche({ enMeVoy = false }: { enMeVoy?: boolean }) {
   const aparcado = new Date(coche.aparcado);
   const hasta = coche.ticketHasta ? new Date(coche.ticketHasta) : null;
   const queda = hasta ? (hasta.getTime() - ahora) / 60e3 : null;
-  const comoVolver = `https://www.google.com/maps/dir/?api=1&destination=${coche.lat},${coche.lon}&travelmode=walking`;
+  // Navegación a pie directa hasta el coche (Google Maps: app si la tienes, si no, la web)
+  const comoVolver = `https://www.google.com/maps/dir/?api=1&destination=${coche.lat},${coche.lon}&travelmode=walking&dir_action=navigate`;
+  const imprecisa = coche.precision != null && coche.precision > PRECISION_MALA_M;
 
   return (
     <section className={`${styles.tarjeta} ${styles.miCoche}`} aria-label="Mi coche">
@@ -125,8 +132,23 @@ export default function MiCoche({ enMeVoy = false }: { enMeVoy?: boolean }) {
         <p>
           <b>Tu coche</b>
           <small>Aparcado a las {hora(aparcado)} · {ahora - aparcado.getTime() < 60e3 ? "ahora mismo" : `hace ${duracion((ahora - aparcado.getTime()) / 60e3)}`}</small>
+          <small>
+            {coche.precision === null ? "📍 Colocado a mano en el mapa" : coche.precision != null ? `📍 Guardado con ±${coche.precision} m` : null}
+            {" · "}
+            {enMeVoy ? (
+              <Link href="/aparcar#coche" className={styles.enlaceBoton}>Ver en el mapa</Link>
+            ) : (
+              <button type="button" className={styles.enlaceBoton} onClick={verCocheEnMapa}>Ver en el mapa</button>
+            )}
+          </small>
         </p>
       </div>
+      {imprecisa && (
+        <p className={styles.aviso}>
+          ⚠️ La ubicación es poco precisa (±{coche.precision} m). Mira el 🚗 en el mapa y arrástralo a su sitio, o
+          vuelve a guardarla con el GPS activado.
+        </p>
+      )}
 
       {/* Ticket de la ORA o del parquímetro */}
       {hasta && queda !== null ? (
