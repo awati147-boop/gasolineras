@@ -12,7 +12,8 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "node scripts/desplegar.mjs",
     "importar-aparcamientos": "node --env-file-if-exists=.env.local scripts/importar-aparcamientos.mts",
-    "importar-zonas": "node --env-file-if-exists=.env.local scripts/importar-zonas.mts"
+    "importar-zonas": "node --env-file-if-exists=.env.local scripts/importar-zonas.mts",
+    "importar-cargadores": "node --env-file-if-exists=.env.local scripts/importar-cargadores.mts"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",

@@ -19,10 +19,13 @@ Datos:
   La web nunca llama al Ministerio: lee de Supabase vía `/api/gasolineras` (zona visible) y `/api/buscar`.
 - Parkings y parquímetros: OpenStreetMap vía Overpass (`scripts/importar-aparcamientos.mts`, provincia de Alicante;
   ampliar a toda España por provincias). Citar "© colaboradores de OpenStreetMap" (ODbL).
+- Puntos de recarga eléctrica: datos oficiales MITECO vía DGT (NAP, DATEX II, `scripts/importar-cargadores.mts`, cada día;
+  tabla `cargadores` en `supabase/cargadores.sql`). Sin precios (el Ministerio aún no los publica en abierto).
+  En la pestaña Gasolina, chip "⚡ Eléctrico" (`/api/cargadores`, `src/lib/cargadores.ts`).
 - Tarifas ORA de Alicante: `src/lib/ora.ts` (fuente oragruaalicante.es). Las calles de la ORA no están publicadas.
 - Precios de parkings: solo de webs oficiales de operadores, siempre con fuente y fecha. No copiar webs de reservas.
 - Esquemas SQL en `supabase/` (idempotentes: se pueden volver a ejecutar enteros). Orden: schema, plazas, aparcamientos,
-  zonas, garajes, reservas, avisos, pagos, denuncias, valoraciones (+ los `*.local.sql` con claves, que no se suben).
+  zonas, garajes, reservas, avisos, pagos, denuncias, valoraciones, cargadores (+ los `*.local.sql` con claves, que no se suben).
 
 Reglas:
 - Un paso cada vez. Antes de programar, explícame el plan en pocas líneas.

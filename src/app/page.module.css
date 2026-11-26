@@ -545,3 +545,12 @@
 .baja { color: var(--marca); font-weight: 700; font-size: 0.75rem; }
 .sube { color: var(--rojo); font-weight: 700; font-size: 0.75rem; }
 .quitarFav { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--superficie-2); color: var(--sub); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+
+/* Coche eléctrico: filtros, leyenda y potencia */
+.filtrosEv { margin-bottom: 12px; }
+.filtrosEv .chips { margin-bottom: 0; padding-bottom: 6px; }
+.leyendaEv { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 6px; padding: 0; font-size: 0.76rem; color: var(--sub); }
+.leyendaEv li { display: inline-flex; align-items: center; gap: 6px; }
+.leyendaEv i { width: 12px; height: 12px; border-radius: 4px; }
+.notaEv { margin: 0; font-size: 0.76rem; color: var(--sub); }
+.potencia { font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; }

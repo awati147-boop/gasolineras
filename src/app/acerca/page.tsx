@@ -30,6 +30,12 @@ export default function Acerca() {
           página principal; si el servicio del Ministerio no responde, mostramos el último dato guardado.
         </li>
         <li>
+          <strong>Puntos de recarga de coche eléctrico:</strong> datos oficiales del Ministerio para la Transición
+          Ecológica (MITECO), publicados por la DGT en el{" "}
+          <a href="https://nap.dgt.es/dataset/puntos-de-recarga-electrica-para-vehiculos" target="_blank" rel="noopener">Punto de Acceso Nacional</a>.
+          Se actualizan cada día. El precio de la recarga lo fija cada operador.
+        </li>
+        <li>
           <strong>Mapa:</strong> ©{" "}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores de OpenStreetMap</a>.
         </li>
