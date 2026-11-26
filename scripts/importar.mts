@@ -16,6 +16,15 @@ export function numero(valor: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Coordenada dentro de España (península, islas, Ceuta y Melilla) o null. El Ministerio manda a veces "0,000000"
+ * en estaciones sin ubicar: guardarlas como 0,0 las pondría en el océano y estropearía el buscador.
+ */
+export function coordenada(valor: string | undefined, min: number, max: number): number | null {
+  const n = numero(valor);
+  return n !== null && n >= min && n <= max ? n : null;
+}
+
 /** "JÁVEA/XÀBIA" -> "javea/xabia" (minúsculas, sin tildes) */
 export function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
@@ -50,6 +59,10 @@ async function main() {
   const restringidas: number[] = []; // "Tipo Venta" R = solo socios/flotas: no se muestran
   for (const e of json.ListaEESSPrecio) {
     const id = Number(e["IDEESS"]);
+    // Las dos coordenadas o ninguna (una estación con solo una no se puede situar)
+    let lat = coordenada(e["Latitud"], 27, 44.5);
+    let lon = coordenada(e["Longitud (WGS84)"], -19, 5);
+    if (lat === null || lon === null) lat = lon = null;
     if (e["Tipo Venta"] === "R") {
       restringidas.push(id);
       continue;
@@ -64,8 +77,8 @@ async function main() {
       id_provincia: e["IDProvincia"],
       cp: e["C.P."],
       horario: e["Horario"],
-      lat: numero(e["Latitud"]),
-      lon: numero(e["Longitud (WGS84)"]),
+      lat,
+      lon,
       busqueda: normalizar(`${e["Localidad"] ?? ""} ${e["Municipio"] ?? ""}`),
       actualizado: fecha,
     });

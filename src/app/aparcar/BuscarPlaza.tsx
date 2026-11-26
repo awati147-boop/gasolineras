@@ -12,7 +12,9 @@ import { nombrePropio } from "@/lib/texto";
 import styles from "../page.module.css";
 import { IconoBuscar, IconoInfo, IconoUbicacion } from "../Iconos";
 import Denunciar from "../Denunciar";
-import { ACCESOS, textoPrecio, urlFoto, type Garaje } from "@/lib/garajes";
+import { alCambiarCoche, guardarCoche, leerCoche, type MiCoche } from "@/lib/miCoche";
+import { ACCESOS, COLUMNAS_GARAJE, textoNota, textoPrecio, urlFoto, type Garaje } from "@/lib/garajes";
+import { resumenHorario } from "@/lib/disponibilidad";
 
 type Plaza = { id: number; lat: number; lon: number; creada: string; expira: string };
 type Aparcamiento = {
@@ -158,15 +160,17 @@ function carrusel(fotos: string[], supabaseUrl: string) {
 /** Ficha HTML de un garaje de particular */
 function fichaGaraje(g: Garaje, supabaseUrl: string) {
   const datos = [
-    g.disponibilidad && `🗓️ ${escapar(g.disponibilidad)}`,
+    g.instantanea && "⚡ Reserva instantánea: se confirma al momento",
+    `🗓️ ${escapar(resumenHorario(g.horario ?? null))}`,
+    g.disponibilidad && `💬 ${escapar(g.disponibilidad)}`,
     g.altura_max && `↕️ Altura máx. ${String(g.altura_max).replace(".", ",")} m`,
     g.acceso && `🔑 ${ACCESOS[g.acceso]}`,
-    g.enchufe && "⚡ Enchufe para coche eléctrico",
+    g.enchufe && "🔌 Enchufe para coche eléctrico",
   ].filter(Boolean);
   return (
     carrusel(g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [], supabaseUrl) +
     `<div class="ficha-cab"><span class="marca" style="background:${COLOR.garaje}">🏠</span>` +
-    `<div><strong>${escapar(g.titulo)}</strong><small>${g.tipo === "cerrado" ? "Garaje cerrado" : "Plaza en garaje"} · de particular</small></div></div>` +
+    `<div><strong>${escapar(g.titulo)}</strong><small>${g.tipo === "cerrado" ? "Garaje cerrado" : "Plaza en garaje"} · de particular${textoNota(g.nota, g.num_valoraciones) ? ` · ${textoNota(g.nota, g.num_valoraciones)}` : " · nuevo"}</small></div></div>` +
     `<div class="ficha-precio"><b>${escapar(textoPrecio(g))}</b></div>` +
     (g.descripcion ? `<p class="ficha-desc">${escapar(g.descripcion)}</p>` : "") +
     datos.map((d) => `<p>${d}</p>`).join("") +
@@ -408,7 +412,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const b = m.getBounds();
     const { data, error } = await db
       .from("garajes")
-      .select("id, titulo, descripcion, tipo, precio_hora, precio_dia, precio_mes, disponibilidad, altura_max, acceso, enchufe, foto, fotos, lat_aprox, lon_aprox, activo, creado")
+      .select(COLUMNAS_GARAJE)
       .eq("activo", true)
       .gte("lat_aprox", b.getSouth()).lte("lat_aprox", b.getNorth())
       .gte("lon_aprox", b.getWest()).lte("lon_aprox", b.getEast())
@@ -434,6 +438,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
     const repintar = setInterval(pintar, 30_000);
     const alVolver = () => !document.hidden && cargarPlazas();
     document.addEventListener("visibilitychange", alVolver);
+    let dejarDeEscucharCoche = () => {};
 
     (async () => {
       const maplibregl = await import("maplibre-gl");
@@ -442,6 +447,39 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       const m = new maplibregl.Map({ container: contenedor.current, style: ESTILO_MAPA, bounds: ZONA_INICIAL });
       mapaRef.current = m;
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+      // Dónde aparqué (guardado solo en este móvil)
+      let marcaCoche: InstanceType<typeof maplibregl.Marker> | null = null;
+      const pintarCoche = (c: MiCoche | null) => {
+        marcaCoche?.remove();
+        marcaCoche = null;
+        if (!c) return;
+        const el = document.createElement("div");
+        el.className = "marca-coche";
+        el.textContent = "🚗";
+        el.title = "Tu coche (arrástralo si no está en su sitio)";
+        marcaCoche = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([c.lon, c.lat]).addTo(m);
+        // Corregir a mano: arrastrar el coche a donde está de verdad
+        marcaCoche.on("dragend", () => {
+          const actual = leerCoche();
+          const p = marcaCoche?.getLngLat();
+          if (actual && p) guardarCoche({ ...actual, lat: p.lat, lon: p.lng, precision: null });
+        });
+      };
+      const verCoche = () => {
+        const c = leerCoche();
+        if (!c) return;
+        m.flyTo({ center: [c.lon, c.lat], zoom: 17, maxDuration: 2000 });
+        contenedor.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+      pintarCoche(leerCoche());
+      const dejarDeEscucharCambios = alCambiarCoche(pintarCoche);
+      window.addEventListener("ver-coche", verCoche);
+      dejarDeEscucharCoche = () => {
+        dejarDeEscucharCambios();
+        window.removeEventListener("ver-coche", verCoche);
+      };
+      // Desde Me voy se llega con /aparcar#coche
+      if (location.hash === "#coche") m.once("load", verCoche);
       m.addControl(new maplibregl.FullscreenControl(), "top-right");
       // La ubicación solo se usa en el navegador para centrar el mapa; no se envía ni se guarda.
       const geo = new maplibregl.GeolocateControl({
@@ -654,6 +692,7 @@ export default function BuscarPlaza(config: ConfigSupabase) {
       clearInterval(intervalo);
       clearInterval(repintar);
       document.removeEventListener("visibilitychange", alVolver);
+      dejarDeEscucharCoche();
       mapaRef.current?.remove();
       mapaRef.current = null;
     };

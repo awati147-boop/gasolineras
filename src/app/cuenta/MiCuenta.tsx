@@ -8,12 +8,15 @@ import styles from "../page.module.css";
 import { IconoCheck, IconoInfo } from "../Iconos";
 import MisGarajes from "./MisGarajes";
 import MisReservas from "./MisReservas";
+import ResumenCuenta from "./ResumenCuenta";
+import { useMisReservas } from "./useMisReservas";
 import ActivarAvisos from "./ActivarAvisos";
+import CobrosApp from "./CobrosApp";
 
 /** Usuario con cuenta "de verdad" (Google o email), no el anónimo de "Me voy" */
 const tieneCuenta = (u: User | null) => Boolean(u && !u.is_anonymous && u.email);
 
-export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid: string }) {
+export default function MiCuenta({ vapid, pagos, ...config }: ConfigSupabase & { vapid: string; pagos: boolean }) {
   const db = supabaseNavegador(config); // mismo cliente siempre (no cambia entre renders)
   const [usuario, setUsuario] = useState<User | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -23,6 +26,7 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
   const [error, setError] = useState("");
   const [publicado] = useState(() => typeof window !== "undefined" && window.location.search.includes("publicado=1"));
   const [guardado] = useState(() => typeof window !== "undefined" && window.location.search.includes("guardado=1"));
+  const reservas = useMisReservas(db, tieneCuenta(usuario)); // una sola carga para el panel y la lista
 
   useEffect(() => {
     // Si venimos de Google o del enlace del email, el cliente canjea el código de la URL automáticamente y después
@@ -119,9 +123,11 @@ export default function MiCuenta({ vapid, ...config }: ConfigSupabase & { vapid:
 
         {publicado && <p className={styles.exito}>✅ ¡Garaje publicado! Ya aparece en el mapa de Aparcar.</p>}
         {guardado && <p className={styles.exito}>✅ Cambios guardados.</p>}
-        <div id="reservas" className={styles.ancla}><MisReservas {...config} /></div>
+        {reservas && reservas.length > 0 && <ResumenCuenta reservas={reservas} />}
+        <div id="reservas" className={styles.ancla}><MisReservas reservas={reservas} url={config.url} /></div>
         {vapid && <div id="avisos" className={styles.ancla}><ActivarAvisos {...config} vapid={vapid} /></div>}
         <div id="garajes" className={styles.ancla}><MisGarajes {...config} /></div>
+        {pagos && <div id="cobros" className={styles.ancla}><CobrosApp {...config} /></div>}
 
         <div className={styles.acciones}>
           <button className={styles.botonSec} onClick={salir}>Cerrar sesión</button>

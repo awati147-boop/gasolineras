@@ -10,7 +10,7 @@
     "importar": "node --env-file-if-exists=.env.local scripts/importar.mts",
     "postinstall": "node -e \"require('fs').copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs','public/maplibre-gl-worker.mjs')\"",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "node scripts/desplegar.mjs",
     "importar-aparcamientos": "node --env-file-if-exists=.env.local scripts/importar-aparcamientos.mts",
     "importar-zonas": "node --env-file-if-exists=.env.local scripts/importar-zonas.mts",
     "importar-cargadores": "node --env-file-if-exists=.env.local scripts/importar-cargadores.mts"

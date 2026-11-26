@@ -21,6 +21,7 @@ const SECCIONES: { titulo?: string; enlaces: Enlace[] }[] = [
     titulo: "Garajes",
     enlaces: [
       { href: "/aparcar?ver=garajes", texto: "Buscar un garaje", icono: "🔍" },
+      { href: "/alquila-tu-garaje", texto: "Gana dinero con tu garaje", icono: "💶" },
       { href: "/cuenta/publicar", texto: "Publicar mi garaje", icono: "➕" },
       { href: "/cuenta#reservas", texto: "Mis reservas", icono: "📋" },
       { href: "/cuenta#garajes", texto: "Mis garajes", icono: "🏠" },

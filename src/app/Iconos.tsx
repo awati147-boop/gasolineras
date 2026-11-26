@@ -1,4 +1,6 @@
 // Iconos SVG propios (trazo de 2px, heredan el color del texto)
+import { LOGO } from "@/lib/app";
+
 type P = { tam?: number; className?: string };
 const base = (tam = 22) => ({
   width: tam, height: tam, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
@@ -45,12 +47,13 @@ export const IconoInfo = ({ tam, className }: P) => (
   <svg {...base(tam)} className={className}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
 );
 
-/** Logotipo: chincheta blanca sobre cuadrado verde */
+/** Logotipo de Mevoy: chincheta con líneas de movimiento sobre cuadrado verde (el mismo que el icono de la app) */
 export const Logo = ({ tam = 32 }: { tam?: number }) => (
   <svg width={tam} height={tam} viewBox="0 0 32 32" aria-hidden>
     <rect width="32" height="32" rx="9" fill="var(--marca)" />
-    <path d="M16 25s-6-5.3-6-9.8a6 6 0 0 1 12 0C22 19.7 16 25 16 25Z" fill="#fff" />
-    <circle cx="16" cy="15.2" r="2.3" fill="var(--marca)" />
+    <path d={LOGO.lineas} stroke="#fff" strokeWidth={LOGO.grosor} strokeLinecap="round" fill="none" />
+    <path d={LOGO.chincheta} fill="#fff" />
+    <circle {...LOGO.punto} fill="var(--marca)" />
   </svg>
 );
 export const IconoPersona = ({ tam, className }: P) => (

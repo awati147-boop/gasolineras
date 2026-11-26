@@ -7,7 +7,9 @@ import type { Map as MapaML, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
-import { ACCESOS, aproximar, reducirFoto, urlFoto, type Garaje } from "@/lib/garajes";
+import { ACCESOS, ANTELACION_INSTANTANEA_H, aproximar, reducirFoto, urlFoto, type Garaje } from "@/lib/garajes";
+import { DIA_COMPLETO, horarioValido } from "@/lib/disponibilidad";
+import EditorHorario, { SIEMPRE, aEditor, aGuardar, type HorarioEditor } from "./EditorHorario";
 import styles from "../../page.module.css";
 import { IconoUbicacion } from "../../Iconos";
 
@@ -34,8 +36,9 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
   const [aproxOriginal, setAproxOriginal] = useState<{ lat_aprox: number; lon_aprox: number } | null>(null);
   const [f, setF] = useState({
     titulo: "", tipo: "plaza" as "plaza" | "cerrado", descripcion: "", direccion: "", indicaciones: "",
-    hora: "", dia: "", mes: "", disponibilidad: "", altura: "", acceso: "mando", enchufe: false,
+    hora: "", dia: "", mes: "", disponibilidad: "", altura: "", acceso: "mando", enchufe: false, instantanea: false,
   });
+  const [horario, setHorario] = useState<HorarioEditor>(SIEMPRE);
   const [fotos, setFotos] = useState<FotoLocal[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
@@ -58,15 +61,19 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
           direccion: priv?.direccion ?? "", indicaciones: priv?.indicaciones ?? "",
           hora: texto(g.precio_hora), dia: texto(g.precio_dia), mes: texto(g.precio_mes),
           disponibilidad: g.disponibilidad ?? "", altura: texto(g.altura_max), acceso: g.acceso ?? "mando", enchufe: g.enchufe,
+          instantanea: Boolean(g.instantanea),
         });
         const rutas = g.fotos?.length ? g.fotos : g.foto ? [g.foto] : [];
         setFotos(rutas.map((ruta) => ({ ruta, vista: urlFoto(config.url, ruta) })));
         setFotosOriginales(rutas);
+        setHorario(aEditor(g.horario));
         setAproxOriginal({ lat_aprox: g.lat_aprox, lon_aprox: g.lon_aprox });
         setPunto(priv ? { lat: priv.lat, lon: priv.lon } : { lat: g.lat_aprox, lon: g.lon_aprox });
         setPuntoElegido(true);
       }
       setComprobando(false);
+      // Desde el calendario se llega con #horario: ir directamente a esa sección cuando ya está pintada
+      if (location.hash === "#horario") setTimeout(() => document.getElementById("horario")?.scrollIntoView(), 50);
     })();
   }, [db, router, editarId, config.url]);
 
@@ -107,6 +114,10 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
     if (!puntoElegido) return setError("Marca en el mapa dónde está tu garaje.");
     if (f.titulo.trim().length < 5) return setError("Pon un título de al menos 5 letras.");
     if (!precio_hora && !precio_dia && !precio_mes) return setError("Indica al menos un precio (por hora, día o mes).");
+    if (horario.every((t) => t === null)) return setError("Marca al menos un día en el horario.");
+    if (horario.some((t) => t && t[1] <= t[0])) return setError("Revisa el horario: la hora de fin debe ser posterior a la de inicio.");
+    const horarioGuardar = aGuardar(horario);
+    if (!horarioValido(horarioGuardar)) return setError("Revisa el horario.");
 
     setEnviando(true);
     try {
@@ -137,6 +148,8 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
         descripcion: f.descripcion.trim() || null,
         precio_hora, precio_dia, precio_mes,
         disponibilidad: f.disponibilidad.trim() || null,
+        horario: horarioGuardar,
+        instantanea: f.instantanea,
         altura_max: numero(f.altura),
         acceso: f.acceso,
         enchufe: f.enchufe,
@@ -238,7 +251,7 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
         </div>
         <label className={styles.check}>
           <input type="checkbox" checked={f.enchufe} onChange={cambiar("enchufe")} />
-          ⚡ Tiene enchufe para cargar coche eléctrico
+          🔌 Tiene enchufe para cargar coche eléctrico
         </label>
         <label className={styles.campo}>
           Descripción <small>(opcional)</small>
@@ -249,7 +262,7 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
 
       {/* ---------- 3. Precio ---------- */}
       <fieldset className={styles.seccion}>
-        <legend><span>3</span> Precio y horario</legend>
+        <legend><span>3</span> Precio</legend>
         <p className={styles.zona}>Rellena al menos uno. Referencia en Alicante: parkings públicos 1,50–2,50 €/h y 15–30 €/día.</p>
         <div className={styles.fila3}>
           {([["hora", "Por hora", "1,50"], ["dia", "Por día", "10"], ["mes", "Por mes", "80"]] as const).map(([c, t, ph]) => (
@@ -262,15 +275,35 @@ export default function PublicarGaraje({ editarId, ...config }: ConfigSupabase &
             </label>
           ))}
         </div>
+      </fieldset>
+
+      {/* ---------- 4. Horario ---------- */}
+      <fieldset className={`${styles.seccion} ${styles.ancla}`} id="horario">
+        <legend><span>4</span> ¿Cuándo está libre?</legend>
+        <p className={styles.zona}>Solo se podrá reservar en este horario. Los días sueltos (vacaciones…) los bloqueas luego en el calendario.</p>
+        <EditorHorario valor={horario} onCambio={setHorario} />
+        {(f.dia.trim() || f.mes.trim()) && !horario.some((t) => t && t[0] === 0 && t[1] === DIA_COMPLETO) && (
+          <p className={styles.aviso}>Las reservas por días o meses solo se pueden pedir en días disponibles las 24 h. Con este horario, solo se podrá reservar por horas.</p>
+        )}
+        <label className={`${styles.check} ${styles.checkDestacado}`}>
+          <input type="checkbox" checked={f.instantanea} onChange={cambiar("instantanea")} />
+          <span>
+            <b>⚡ Reserva instantánea</b>
+            <small>
+              Las reservas dentro de tu horario se confirman solas, sin que tengas que responder. Las que empiezan en menos
+              de {ANTELACION_INSTANTANEA_H} h te llegan como solicitud. Los garajes con reserva instantánea reciben más reservas.
+            </small>
+          </span>
+        </label>
         <label className={styles.campo}>
-          ¿Cuándo está disponible?
-          <input value={f.disponibilidad} onChange={cambiar("disponibilidad")} maxLength={200} placeholder="Laborables de 9 a 19 h · fines de semana todo el día" />
+          Nota sobre el horario <small>(opcional)</small>
+          <input value={f.disponibilidad} onChange={cambiar("disponibilidad")} maxLength={200} placeholder="Avísame con 1 hora de antelación" />
         </label>
       </fieldset>
 
-      {/* ---------- 4. Fotos ---------- */}
+      {/* ---------- 5. Fotos ---------- */}
       <fieldset className={styles.seccion}>
-        <legend><span>4</span> Fotos <small className={styles.contadorFotos}>{fotos.length}/{MAX_FOTOS}</small></legend>
+        <legend><span>5</span> Fotos <small className={styles.contadorFotos}>{fotos.length}/{MAX_FOTOS}</small></legend>
         <p className={styles.zona}>Enseña la entrada, la plaza y el acceso. La primera es la portada.</p>
         <div className={styles.rejillaFotos}>
           {fotos.map((foto, i) => (

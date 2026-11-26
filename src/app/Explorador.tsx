@@ -8,11 +8,19 @@ import { distintivo } from "@/lib/marcas";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { nombrePropio } from "@/lib/texto";
 import { IconoBuscar, IconoPin, IconoSurtidor, IconoUbicacion } from "./Iconos";
+import { MAX_FAVORITAS, alternarFavorita, esFavorita } from "@/lib/favoritas";
+import MisGasolineras from "./MisGasolineras";
+import {
+  COLORES_EV, CONECTORES_FILTRO, ELECTRICO, NOMBRE_NIVEL, VELOCIDADES, conectoresTexto, kwTexto, nivelEv, pagoTexto,
+  type Cargador, type NivelEv,
+} from "@/lib/cargadores";
 
+// Los más usados primero: en el móvil solo se ven los tres o cuatro primeros sin deslizar
 const CARBURANTES = [
   { id: "Gasolina 95 E5", nombre: "Gasolina 95" },
-  { id: "Gasolina 98 E5", nombre: "Gasolina 98" },
   { id: "Gasoleo A", nombre: "Diésel" },
+  { id: ELECTRICO, nombre: "⚡ Eléctrico" },
+  { id: "Gasolina 98 E5", nombre: "Gasolina 98" },
   { id: "Gasoleo Premium", nombre: "Diésel Premium" },
   { id: "Gases licuados del petróleo", nombre: "GLP" },
 ];
@@ -63,6 +71,11 @@ export default function Explorador() {
   const [carburante, setCarburante] = useState(CARBURANTES[0].id);
   const carburanteRef = useRef(carburante);
   const [lista, setLista] = useState<Gasolinera[]>([]);
+  // Coche eléctrico: puntos de recarga y filtros (velocidad mínima y tipo de conector)
+  const [cargadores, setCargadores] = useState<Cargador[]>([]);
+  const [filtroEv, setFiltroEv] = useState<{ kw: number; tipo: string | null }>({ kw: 0, tipo: null });
+  const filtroEvRef = useRef(filtroEv);
+  const [fechaEv, setFechaEv] = useState<string | null>(null);
   const [recortado, setRecortado] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -82,7 +95,33 @@ export default function Explorador() {
     const ctrl = new AbortController();
     peticion.current = ctrl;
     setCargando(true);
+    const zona = `w=${b.getWest()}&s=${b.getSouth()}&e=${b.getEast()}&n=${b.getNorth()}`;
     try {
+      if (carburanteRef.current === ELECTRICO) {
+        const f = filtroEvRef.current;
+        const res = await fetch(`/api/cargadores?${zona}${f.kw ? `&kw=${f.kw}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error();
+        const json = (await res.json()) as { cargadores: Cargador[]; recortado: boolean; fecha: string | null };
+        (m.getSource("gasolineras") as GeoJSONSource | undefined)?.setData({
+          type: "FeatureCollection",
+          features: json.cargadores.map((c) => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [c.lon, c.lat] },
+            properties: {
+              tipo: "cargador", id: c.id, nombre: c.nombre ?? "Punto de recarga", operador: c.operador ?? "",
+              direccion: c.direccion ?? "", municipio: c.municipio ?? "", horario: c.horario ?? "", puntos: c.puntos,
+              conectores: conectoresTexto(c.conectores), pago: pagoTexto(c.pago),
+              etiqueta: kwTexto(c.potencia_kw), nivel: nivelEv(c.potencia_kw), orden: -c.potencia_kw,
+            },
+          })),
+        });
+        setCargadores(json.cargadores);
+        setLista([]);
+        setRecortado(json.recortado);
+        setFechaEv(json.fecha);
+        setError("");
+        return;
+      }
       const url =
         `/api/gasolineras?c=${encodeURIComponent(carburanteRef.current)}` +
         `&w=${b.getWest()}&s=${b.getSouth()}&e=${b.getEast()}&n=${b.getNorth()}`;
@@ -101,14 +140,19 @@ export default function Explorador() {
         features: gs.map((g) => ({
           type: "Feature",
           geometry: { type: "Point", coordinates: [g.lon, g.lat] },
-          properties: { ...g, etiqueta: euros(g.precio), nivel: nivel(g.precio) },
+          properties: { ...g, etiqueta: euros(g.precio), nivel: nivel(g.precio), orden: g.precio },
         })),
       });
       setLista(gs);
+      setCargadores([]);
       setRecortado(json.recortado);
       setError("");
     } catch (e) {
-      if ((e as Error).name !== "AbortError") setError("No se han podido cargar los precios. Inténtalo más tarde.");
+      if ((e as Error).name !== "AbortError") {
+        setError(carburanteRef.current === ELECTRICO
+          ? "No se han podido cargar los puntos de recarga. Inténtalo más tarde."
+          : "No se han podido cargar los precios. Inténtalo más tarde.");
+      }
     } finally {
       if (peticion.current === ctrl) setCargando(false);
     }
@@ -142,7 +186,7 @@ export default function Explorador() {
       m.addControl(geo, "top-right");
 
       m.on("load", () => {
-        for (const [nombre, color] of Object.entries(COLORES)) {
+        for (const [nombre, color] of Object.entries({ ...COLORES, ...COLORES_EV })) {
           m.addImage(`eti-${nombre}`, fondoEtiqueta(color), {
             stretchX: [[7, 17]], stretchY: [[7, 17]], content: [5, 5, 19, 19],
           });
@@ -156,12 +200,13 @@ export default function Explorador() {
           source: "gasolineras",
           paint: {
             "circle-radius": 4,
-            "circle-color": ["match", ["get", "nivel"], "verde", COLORES.verde, "amarillo", COLORES.amarillo, COLORES.rojo],
+            "circle-color": ["match", ["get", "nivel"], "verde", COLORES.verde, "amarillo", COLORES.amarillo,
+              "ultra", COLORES_EV.ultra, "rapida", COLORES_EV.rapida, "media", COLORES_EV.media, "lenta", COLORES_EV.lenta, COLORES.rojo],
             "circle-stroke-width": 1,
             "circle-stroke-color": "#fff",
           },
         });
-        // Etiqueta con el precio; si se solapan, se ven primero las más baratas
+        // Etiqueta con el precio (o la potencia); si se solapan, se ven primero las más baratas (o las más potentes)
         m.addLayer({
           id: "etiquetas",
           type: "symbol",
@@ -176,7 +221,7 @@ export default function Explorador() {
             "text-anchor": "bottom",
             "text-offset": [0, -0.7],
             "icon-anchor": "bottom",
-            "symbol-sort-key": ["get", "precio"],
+            "symbol-sort-key": ["get", "orden"],
             "text-allow-overlap": false,
             "icon-allow-overlap": false,
             "text-padding": 1,
@@ -187,11 +232,34 @@ export default function Explorador() {
         const abrirFicha = (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
-          const g = f.properties as unknown as Gasolinera;
           const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
+          if ((f.properties as { tipo?: string }).tipo === "cargador") {
+            const c = f.properties as Record<string, string | number>;
+            const color = COLORES_EV[c.nivel as NivelEv] ?? COLORES_EV.lenta;
+            new maplibregl.Popup({ offset: 12, maxWidth: "300px", className: "ficha" })
+              .setLngLat([lon, lat])
+              .setHTML(
+                `<div class="ficha-cab">
+                   <span class="marca" style="background:${color}">⚡</span>
+                   <div><strong>${escapar(String(c.nombre))}</strong><small>${escapar(String(c.operador))}</small></div>
+                 </div>
+                 <div class="ficha-precio"><b>${escapar(String(c.etiqueta))}</b><span> máx. · ${Number(c.puntos)} ${Number(c.puntos) === 1 ? "punto" : "puntos"} de carga</span></div>
+                 <p>🔌 ${escapar(String(c.conectores))}</p>
+                 ${c.direccion ? `<p>📍 ${escapar(String(c.direccion))}${c.municipio ? `, ${escapar(String(c.municipio))}` : ""}</p>` : ""}
+                 ${c.horario ? `<p>🕒 ${escapar(String(c.horario))}</p>` : ""}
+                 ${c.pago ? `<p>💳 ${escapar(String(c.pago))}</p>` : ""}
+                 <p class="ficha-nota">El precio de la recarga lo fija cada operador: consúltalo en su app.</p>
+                 <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
+              )
+              .addTo(m);
+            return;
+          }
+          const g = f.properties as unknown as Gasolinera;
           const d = distintivo(g.rotulo);
           const nombreCarb = CARBURANTES.find((x) => x.id === carburanteRef.current)?.nombre ?? "";
-          new maplibregl.Popup({ offset: 12, maxWidth: "300px", className: "ficha" })
+          const id = Number(g.id);
+          const textoFav = () => (esFavorita(id) ? "★ Guardada" : "☆ Guardar");
+          const popup = new maplibregl.Popup({ offset: 12, maxWidth: "300px", className: "ficha" })
             .setLngLat([lon, lat])
             .setHTML(
               `<div class="ficha-cab">
@@ -201,9 +269,21 @@ export default function Explorador() {
                <div class="ficha-precio"><b>${euros(Number(g.precio))} €</b><span>/l · ${escapar(nombreCarb)}</span></div>
                <p>📍 ${escapar(nombrePropio(g.direccion))}</p>
                <p>🕒 ${escapar(g.horario)}</p>
-               <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>`,
+               <div class="ficha-botones">
+                 <button type="button" class="ficha-fav" aria-pressed="${esFavorita(id)}">${textoFav()}</button>
+                 <a class="ficha-ir" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" rel="noopener">Cómo llegar</a>
+               </div>`,
             )
             .addTo(m);
+          // ☆ Guardar: en "Mis gasolineras" (solo en este móvil)
+          const boton = popup.getElement().querySelector<HTMLButtonElement>(".ficha-fav");
+          boton?.addEventListener("click", () => {
+            const guardada = alternarFavorita({ id, rotulo: g.rotulo, localidad: g.localidad });
+            boton.textContent = !guardada && !esFavorita(id) && boton.getAttribute("aria-pressed") === "false"
+              ? `Máximo ${MAX_FAVORITAS} guardadas`
+              : textoFav();
+            boton.setAttribute("aria-pressed", String(esFavorita(id)));
+          });
         };
         for (const capa of ["etiquetas", "puntos"]) {
           m.on("click", capa, abrirFicha);
@@ -236,6 +316,14 @@ export default function Explorador() {
     if (mapaRef.current?.getSource("gasolineras")) cargar();
   }, [carburante, cargar]);
 
+  /** Filtros de los puntos de recarga (velocidad mínima y conector) */
+  function cambiarFiltroEv(cambio: Partial<{ kw: number; tipo: string | null }>) {
+    const nuevo = { ...filtroEvRef.current, ...cambio };
+    filtroEvRef.current = nuevo;
+    setFiltroEv(nuevo);
+    cargar();
+  }
+
   /** El buscador solo mueve el mapa; los datos se recargan al terminar el movimiento */
   async function buscar(e: React.FormEvent) {
     e.preventDefault();
@@ -245,13 +333,17 @@ export default function Explorador() {
     try {
       const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`);
       const { zona } = (await res.json()) as { zona: [number, number, number, number] | null };
-      if (!zona) return setAvisoBusqueda(`No encontramos gasolineras en «${q}».`);
+      if (!zona) return setAvisoBusqueda(`No encontramos «${q}».`);
       mapaRef.current?.fitBounds(zona, { padding: 40, maxZoom: 13 });
     } catch {
       setAvisoBusqueda("No se ha podido buscar. Inténtalo más tarde.");
     }
   }
 
+  const esElectrico = carburante === ELECTRICO;
+  const cargadoresKm = cargadores.map((c) => ({ ...c, km: yo ? distanciaKm(yo, c) : null }));
+  const cargadoresOrden = orden === "distancia" && yo ? [...cargadoresKm].sort((a, b) => a.km! - b.km!) : cargadoresKm;
+  const totalVisible = esElectrico ? cargadores.length : lista.length;
   const conDistancia = lista.map((g) => ({ ...g, km: yo ? distanciaKm(yo, g) : null }));
   const ordenada =
     orden === "distancia" && yo ? [...conDistancia].sort((a, b) => a.km! - b.km!) : conDistancia;
@@ -308,6 +400,45 @@ export default function Explorador() {
         ))}
       </nav>
 
+      {esElectrico ? (
+        <section className={styles.filtrosEv} aria-label="Filtros de recarga">
+          <nav className={styles.chips} aria-label="Velocidad de carga">
+            {VELOCIDADES.map((v) => (
+              <button key={v.kw} type="button" onClick={() => cambiarFiltroEv({ kw: v.kw })}
+                className={filtroEv.kw === v.kw ? styles.chipActivo : styles.chip} aria-pressed={filtroEv.kw === v.kw}>
+                {v.nombre}
+              </button>
+            ))}
+          </nav>
+          <nav className={styles.chips} aria-label="Conector">
+            {CONECTORES_FILTRO.map((c) => (
+              <button key={c.id} type="button" onClick={() => cambiarFiltroEv({ tipo: filtroEv.tipo === c.id ? null : c.id })}
+                className={filtroEv.tipo === c.id ? styles.chipActivo : styles.chip} aria-pressed={filtroEv.tipo === c.id}>
+                🔌 {c.nombre}
+              </button>
+            ))}
+          </nav>
+          <ul className={styles.leyendaEv} aria-label="Colores">
+            {(Object.keys(COLORES_EV) as NivelEv[]).map((n) => (
+              <li key={n}><i style={{ background: COLORES_EV[n] }} />{NOMBRE_NIVEL[n]}</li>
+            ))}
+          </ul>
+          <p className={styles.notaEv}>
+            Datos oficiales del Ministerio (MITECO), vía DGT{fechaEv ? ` · ${new Date(fechaEv).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}` : ""}.
+            El precio de la recarga lo fija cada operador.
+          </p>
+        </section>
+      ) : (
+        <MisGasolineras
+          carburante={carburante}
+          nombreCarburante={CARBURANTES.find((x) => x.id === carburante)?.nombre ?? ""}
+          onVer={(p) => {
+            mapaRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 15 });
+            contenedor.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+        />
+      )}
+
       {error && <p className={styles.error}>{error}</p>}
 
       {masBarata && ahorro > 0 && (
@@ -331,9 +462,11 @@ export default function Explorador() {
 
         <section className={styles.panel}>
           <h2 className={styles.subtitulo}>
-            {cargando && lista.length === 0
-              ? "Buscando gasolineras…"
-              : `${lista.length}${recortado ? "+" : ""} gasolineras en el mapa`}
+            {cargando && totalVisible === 0
+              ? esElectrico ? "Buscando puntos de recarga…" : "Buscando gasolineras…"
+              : esElectrico
+                ? `${cargadores.length}${recortado ? "+" : ""} ${cargadores.length === 1 ? "punto de recarga" : "puntos de recarga"} en el mapa`
+                : `${lista.length}${recortado ? "+" : ""} gasolineras en el mapa`}
           </h2>
           {recortado && <p className={styles.zona}>Hay muchas en esta zona: acércate para verlas todas.</p>}
           {yo && (
@@ -347,16 +480,33 @@ export default function Explorador() {
                   className={orden === o ? styles.chipActivo : styles.chip}
                   aria-pressed={orden === o}
                 >
-                  {o === "precio" ? "Precio" : "Distancia"}
+                  {o === "precio" ? (esElectrico ? "Potencia" : "Precio") : "Distancia"}
                 </button>
               ))}
             </div>
           )}
 
-          {cargando && lista.length === 0 ? (
+          {cargando && totalVisible === 0 ? (
             <div className={styles.lista} aria-hidden>
               {Array.from({ length: 6 }, (_, i) => <div key={i} className={styles.esqueleto} />)}
             </div>
+          ) : esElectrico ? (
+            <ol className={styles.lista}>
+              {cargadoresOrden.slice(0, 20).map((c) => (
+                <li key={c.id} className={styles.item} onClick={() => mapaRef.current?.flyTo({ center: [c.lon, c.lat], zoom: 15 })}>
+                  <span className="marca" style={{ background: COLORES_EV[nivelEv(c.potencia_kw)] }}>⚡</span>
+                  <div className={styles.info}>
+                    <strong>{c.nombre ?? "Punto de recarga"}</strong>
+                    <span className={styles.sub}>{conectoresTexto(c.conectores)}</span>
+                    <span className={styles.sub}>{[c.operador, c.municipio].filter(Boolean).join(" · ")}</span>
+                  </div>
+                  <span className={styles.derecha}>
+                    <span className={styles.potencia} style={{ color: COLORES_EV[nivelEv(c.potencia_kw)] }}>{kwTexto(c.potencia_kw)}</span>
+                    {c.km !== null && <span className={styles.distancia}><IconoPin tam={13} />{formatoKm(c.km)}</span>}
+                  </span>
+                </li>
+              ))}
+            </ol>
           ) : (
             <ol className={styles.lista}>
               {ordenada.slice(0, 20).map((g, i) => (
@@ -388,10 +538,14 @@ export default function Explorador() {
               ))}
             </ol>
           )}
-          {!cargando && lista.length === 0 && !error && (
+          {!cargando && totalVisible === 0 && !error && (
             <div className={styles.vacio}>
               <IconoSurtidor tam={34} />
-              <p>No hay gasolineras con este carburante en la zona visible.<br />Prueba a alejar el mapa o a cambiar de carburante.</p>
+              {esElectrico ? (
+                <p>No hay puntos de recarga con estos filtros en la zona visible.<br />Prueba a alejar el mapa o a quitar filtros.</p>
+              ) : (
+                <p>No hay gasolineras con este carburante en la zona visible.<br />Prueba a alejar el mapa o a cambiar de carburante.</p>
+              )}
             </div>
           )}
         </section>

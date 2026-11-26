@@ -3,7 +3,7 @@ import Link from "next/link";
 import { NOMBRE_APP } from "@/lib/app";
 import styles from "../page.module.css";
 
-export const metadata: Metadata = { title: `Acerca de · ${NOMBRE_APP}` };
+export const metadata: Metadata = { title: "Acerca de" };
 
 export default function Acerca() {
   return (
@@ -11,9 +11,15 @@ export default function Acerca() {
       <p><Link href="/">← Volver al mapa</Link></p>
       <h1 className={styles.titulo}>Acerca de {NOMBRE_APP}</h1>
       <p>
-        {NOMBRE_APP} te muestra en un mapa las gasolineras más baratas de España, con los precios oficiales de cada
-        carburante. Es gratuita y no necesita registro.
+        {NOMBRE_APP} es la app para moverte en coche por la ciudad, en un solo mapa:
       </p>
+      <ul>
+        <li><strong>⛽ Gasolina:</strong> las gasolineras más baratas de España, con los precios oficiales de cada carburante.</li>
+        <li><strong>🅿️ Aparcar:</strong> plazas que otros acaban de dejar libres, parkings y parquímetros.</li>
+        <li><strong>🚗 Me voy:</strong> avisa con un toque de que dejas tu plaza para que la aproveche otro conductor.</li>
+        <li><strong>🏠 Garajes:</strong> alquila un garaje por horas o días, o gana dinero con el tuyo cuando no lo usas.</li>
+      </ul>
+      <p>Es gratuita y, salvo para los garajes, no necesita registro.</p>
 
       <h2 className={styles.subtitulo}>De dónde salen los datos</h2>
       <ul>
@@ -22,6 +28,12 @@ export default function Acerca() {
           <a href="https://geoportalgasolineras.es/" target="_blank" rel="noopener">Geoportal de gasolineras</a>{" "}
           (datos abiertos). Se actualizan varias veces al día. La fecha de la última actualización aparece arriba en la
           página principal; si el servicio del Ministerio no responde, mostramos el último dato guardado.
+        </li>
+        <li>
+          <strong>Puntos de recarga de coche eléctrico:</strong> datos oficiales del Ministerio para la Transición
+          Ecológica (MITECO), publicados por la DGT en el{" "}
+          <a href="https://nap.dgt.es/dataset/puntos-de-recarga-electrica-para-vehiculos" target="_blank" rel="noopener">Punto de Acceso Nacional</a>.
+          Se actualizan cada día. El precio de la recarga lo fija cada operador.
         </li>
         <li>
           <strong>Mapa:</strong> ©{" "}

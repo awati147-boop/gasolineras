@@ -5,6 +5,7 @@ import type { Map as MapaML, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ESTILO_MAPA, URL_WORKER_MAPA } from "@/lib/estiloMapa";
 import { asegurarSesion, supabaseNavegador, type ConfigSupabase } from "@/lib/supabaseNavegador";
+import { guardarCoche, leerCoche } from "@/lib/miCoche";
 import styles from "../page.module.css";
 import { IconoCheck, IconoCoche, IconoPin, IconoReloj } from "../Iconos";
 
@@ -52,6 +53,7 @@ export default function DejarPlaza(config: ConfigSupabase) {
         .single();
       if (error) throw new Error(/minutos/.test(error.message) ? error.message : "No se ha podido compartir la plaza.");
       setEstado({ paso: "hecho", plaza: data });
+      if (leerCoche()) guardarCoche(null); // te has ido: ya no hace falta recordar dónde estaba el coche
     } catch (e) {
       setError((e as Error).message);
       setEstado({ paso: "confirmar", punto });

@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { NOMBRE_APP } from "@/lib/app";
 import { ACTUALIZADO, TITULAR, contacto } from "@/lib/legal";
+import { pagosActivos } from "@/lib/pagosApi";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "Política de privacidad" };
 
-export default function Privacidad() {
+export default async function Privacidad() {
+  await connection(); // el apartado de pagos depende de la configuración del servidor
+  const pagos = pagosActivos();
   return (
     <main className={`${styles.main} ${styles.texto}`}>
       <p><Link href="/acerca">← Acerca de</Link></p>
@@ -26,7 +30,7 @@ export default function Privacidad() {
         <li>
           <b>Tu ubicación:</b> solo se usa <b>en tu dispositivo</b> para centrar el mapa y calcular distancias. No se envía
           ni se guarda. Si dejas una plaza libre, se guarda únicamente el punto de esa plaza durante 10 minutos, sin
-          vincularlo a tu identidad.
+          vincularlo a tu identidad. Si pulsas «He aparcado aquí», el sitio del coche se guarda solo en tu móvil.
         </li>
         <li>
           <b>Búsquedas:</b> lo que escribes en el buscador («¿A dónde vas?») se usa solo para encontrar ese lugar en el
@@ -44,6 +48,19 @@ export default function Privacidad() {
           <b>Reservas y mensajes:</b> fechas, precio y los mensajes del chat. Solo los ven las dos partes de la reserva y,
           si hay una denuncia, el titular para revisarla.
         </li>
+        <li>
+          <b>Matrícula</b> (opcional, al reservar un garaje): solo la ve el dueño de ese garaje, para identificar tu coche.
+          Se borra automáticamente al día siguiente de terminar la reserva.
+        </li>
+        {pagos && (
+          <li>
+            <b>Pagos</b> (solo si pagas o cobras en la app): los datos de tu tarjeta los trata directamente nuestro
+            proveedor de pagos, una entidad de pago autorizada; nosotros no los vemos ni los guardamos. Guardamos el
+            importe, el estado y una referencia de cada pago. Si cobras en la app, el proveedor verifica tu identidad y tu
+            cuenta bancaria (obligación legal de prevención del blanqueo de capitales); para el alta le facilitamos tu email, y
+            el proveedor solo nos indica si tu cuenta está verificada.
+          </li>
+        )}
         <li><b>Denuncias:</b> el motivo y el comentario, para moderar la plataforma.</li>
         <li>
           <b>Avisos (notificaciones):</b> si los activas, guardamos la dirección técnica de tu dispositivo que da el
@@ -59,13 +76,16 @@ export default function Privacidad() {
       <p>
         La ejecución del servicio que solicitas (art. 6.1.b RGPD) para la cuenta, anuncios, reservas y chat, y el interés
         legítimo en mantener la plataforma segura (art. 6.1.f RGPD) para la moderación y la prevención de abusos.
+        {pagos && " Los registros de pagos y la información fiscal se conservan para cumplir obligaciones legales (art. 6.1.c RGPD)."}
       </p>
 
       <h2 className={styles.subtitulo}>Con quién se comparten</h2>
       <p>
         No vendemos ni cedemos tus datos. Solo los tratan, por nuestra cuenta y con contrato, los proveedores técnicos
         que necesitamos para dar el servicio (alojamiento de la web, base de datos y autenticación) y, si eliges entrar
-        con Google, Google. Si activas los avisos, el servicio de notificaciones de tu navegador los entrega cifrados:
+        con Google, Google.{" "}
+        {pagos && "Si pagas o cobras en la app, el proveedor de pagos, que además responde de sus propias obligaciones legales (verificación de identidad y prevención del fraude). "}
+        Si activas los avisos, el servicio de notificaciones de tu navegador los entrega cifrados:
         no puede leer su contenido. Algunos proveedores pueden tratar datos fuera del Espacio Económico Europeo con las
         garantías previstas en el RGPD (Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo).
       </p>
@@ -86,6 +106,8 @@ export default function Privacidad() {
       <ul>
         <li>Plazas libres: 10 minutos.</li>
         <li>Avisos: hasta que los desactives o el navegador deje de aceptarlos.</li>
+        <li>Matrícula de una reserva: hasta el día siguiente de terminar la reserva.</li>
+        {pagos && <li>Registros de pagos: el plazo que exige la ley (normativa contable y fiscal), aunque borres la cuenta.</li>}
         <li>Cuenta, anuncios, reservas y mensajes: mientras tengas la cuenta. Al borrarla se eliminan.</li>
         <li>Lo que la ley obligue a conservar, durante el plazo legal.</li>
       </ul>

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist } from "next/font/google";
-import { COLOR_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
+import { COLOR_APP, LEMA_APP, NOMBRE_APP, NOMBRE_CORTO } from "@/lib/app";
 import Pestanas from "./Pestanas";
 import AvisoInstalar from "./AvisoInstalar";
 import MenuLateral from "./MenuLateral";
@@ -14,8 +14,9 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: { default: NOMBRE_APP, template: `%s · ${NOMBRE_APP}` },
-  description: "Gasolineras más baratas, plazas libres y aparcamiento cerca de ti. Gratis y sin registro.",
+  title: { default: `${NOMBRE_APP} · ${LEMA_APP}`, template: `%s · ${NOMBRE_APP}` },
+  description:
+    "La gasolinera más barata, dónde aparcar, plazas que se quedan libres y garajes por horas cerca de ti. Gratis.",
   applicationName: NOMBRE_APP,
   appleWebApp: { capable: true, title: NOMBRE_CORTO, statusBarStyle: "default" },
 };

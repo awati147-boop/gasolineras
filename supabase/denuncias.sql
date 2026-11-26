@@ -1,11 +1,11 @@
--- Denuncias de anuncios de garajes y de conversaciones (reservas).
--- Requiere garajes.sql y reservas.sql. Pegar en Supabase > SQL Editor. Idempotente.
+-- Denuncias de anuncios de garajes, de conversaciones (reservas) y de opiniones (valoraciones).
+-- Requiere garajes.sql y reservas.sql (y valoraciones.sql para denunciar opiniones). Pegar en Supabase > SQL Editor. Idempotente.
 -- Solo el administrador las ve (Table Editor de Supabase); los usuarios solo pueden crearlas.
 
 create table if not exists denuncias (
   id         bigint generated always as identity primary key,
-  tipo       text not null check (tipo in ('garaje', 'reserva')),
-  objeto_id  uuid not null,                       -- id del garaje o de la reserva
+  tipo       text not null,
+  objeto_id  uuid not null,                       -- id del garaje, de la reserva o de la valoración
   motivo     text not null check (motivo in ('estafa', 'inapropiado', 'datos_personales', 'spam', 'otro')),
   detalle    text check (char_length(detalle) <= 500),
   autor      uuid not null default auth.uid() references auth.users(id) on delete cascade,
@@ -14,6 +14,8 @@ create table if not exists denuncias (
   unique (tipo, objeto_id, autor)                 -- una denuncia por persona y cosa
 );
 create index if not exists denuncias_abiertas on denuncias (estado, creada desc);
+alter table denuncias drop constraint if exists denuncias_tipo_check;
+alter table denuncias add constraint denuncias_tipo_check check (tipo in ('garaje', 'reserva', 'valoracion'));
 
 create or replace function denuncias_antes() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -29,6 +31,10 @@ begin
   end if;
   if new.tipo = 'garaje' and not exists (select 1 from garajes where id = new.objeto_id) then
     raise exception 'Ese anuncio no existe';
+  end if;
+  if new.tipo = 'valoracion' then
+    if to_regclass('public.valoraciones') is null then raise exception 'Esa opinión no existe'; end if;
+    if not exists (select 1 from valoraciones where id = new.objeto_id) then raise exception 'Esa opinión no existe'; end if;
   end if;
   new.autor := auth.uid();
   new.estado := 'abierta';
@@ -48,6 +54,13 @@ begin
     where tipo = 'garaje' and objeto_id = new.objeto_id and estado = 'abierta'
   ) >= 3 then
     update garajes set activo = false where id = new.objeto_id;
+  end if;
+  -- Una opinión denunciada por 2 personas se oculta (y deja de contar en la nota) hasta que se revise
+  if new.tipo = 'valoracion' and (
+    select count(distinct autor) from denuncias
+    where tipo = 'valoracion' and objeto_id = new.objeto_id and estado = 'abierta'
+  ) >= 2 then
+    update valoraciones set oculta = true where id = new.objeto_id;
   end if;
   return null;
 end $$;

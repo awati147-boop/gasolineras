@@ -1,5 +1,6 @@
 /* ===== Sistema visual ===== */
 :root {
+  color-scheme: light dark;  /* controles del navegador (hora, fecha, barras) en claro u oscuro según el móvil */
   --marca: #0a7d3b;          /* verde de marca */
   --marca-fuerte: #075c2b;
   --marca-suave: #e6f4ec;
@@ -59,7 +60,10 @@ button { font: inherit; }
   border-bottom: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
 }
 .cabecera-marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texto); font-weight: 750; font-size: 1.05rem; letter-spacing: -0.01em; }
-.cabecera-info { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: var(--sub); }
+.cabecera-info {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: var(--sub);
+  border: 0; background: none; padding: 0; cursor: pointer; /* el botón del menú, sin el borde del navegador */
+}
 .cabecera-info:hover { background: var(--superficie-2); }
 
 /* ===== Barra inferior ===== */
@@ -123,6 +127,11 @@ button { font: inherit; }
   display: block; text-align: center; margin-top: 12px; padding: 11px;
   border-radius: 12px; background: var(--marca); color: #fff; text-decoration: none; font-weight: 700;
 }
+.ficha-botones { display: flex; gap: 8px; align-items: stretch; margin-top: 12px; }
+.ficha-nota { font-size: 0.78rem; font-style: italic; }
+.ficha-botones .ficha-ir { flex: 1; margin-top: 0; }
+.ficha-fav { flex: none; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); border-radius: 12px; padding: 0 12px; font: inherit; font-weight: 700; cursor: pointer; }
+.ficha-fav[aria-pressed="true"] { color: var(--ambar); border-color: color-mix(in srgb, var(--ambar) 50%, var(--borde)); }
 .maplibregl-ctrl-group { border-radius: 12px !important; box-shadow: var(--sombra) !important; }
 .ficha-etiqueta { display: inline-block; margin-top: 3px; padding: 2px 8px; border-radius: 999px; color: #fff; font-size: 0.72rem; font-weight: 700; }
 .ficha-tarifas { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 6px; }
@@ -258,3 +267,6 @@ button.ficha-ir { width: 100%; border: 0; font: inherit; font-weight: 700; curso
 .menu-enlace.activo { background: var(--marca-suave); color: var(--marca-fuerte); }
 .menu-legal { margin: auto 10px 0; padding-top: 14px; font-size: 0.8rem; color: var(--sub); }
 .menu-legal a { color: var(--sub); }
+
+/* Mi coche en el mapa */
+.marca-coche { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #fff; border: 3px solid var(--marca); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); font-size: 18px; line-height: 1; }

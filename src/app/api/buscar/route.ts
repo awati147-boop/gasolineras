@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
   let consulta = supabasePublico()
     .from("gasolineras")
     .select("lat, lon, localidad, municipio")
-    .not("lat", "is", null);
+    // Solo estaciones bien ubicadas en España (hay alguna con 0,0 que alejaría el mapa hasta África)
+    .gte("lat", 27).lte("lat", 44.5)
+    .gte("lon", -19).lte("lon", 5);
   if (/^\d{2,5}$/.test(q)) {
     consulta = consulta.like("cp", `${q}%`);
   } else {

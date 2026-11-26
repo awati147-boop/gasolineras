@@ -310,6 +310,65 @@
 .enlaceCancelar { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--rojo); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .accionesGaraje a { padding: 7px 12px; font-size: 0.85rem; text-decoration: none; }
 
+/* Reservar: formulario + resumen (al lado y fijo en pantallas anchas) */
+.reservaGrid { display: grid; gap: 14px; align-items: start; }
+@media (min-width: 900px) {
+  .reservaGrid { grid-template-columns: minmax(0, 1fr) 340px; }
+  .resumenReserva { position: sticky; top: 76px; }
+}
+.resumenReserva { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.resumenReserva h2, .resumenReserva p { margin: 0; }
+.resumenReserva .boton { width: 100%; }
+.desglose { display: grid; grid-template-columns: 1fr auto; gap: 8px 0; margin: 0; font-variant-numeric: tabular-nums; }
+.desglose dt { color: var(--sub); }
+.desglose dd { margin: 0; padding-left: 12px; text-align: right; font-weight: 600; }
+.desglose .desgloseTotal { color: var(--texto); font-weight: 800; font-size: 1.15rem; border-top: 1px solid var(--borde); padding-top: 10px; }
+.desglose dd.desgloseTotal { color: var(--marca); font-size: 1.5rem; }
+.etiquetaGratis { display: block; width: fit-content; margin-top: 2px; padding: 1px 8px; border-radius: 999px; background: var(--marca-suave); color: var(--marca); font-size: 0.74rem; font-weight: 700; }
+.ocupadas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.85rem; color: var(--sub); }
+.ocupadoChip { padding: 3px 9px; border-radius: 999px; background: var(--superficie-2); color: var(--sub); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+
+/* Reserva confirmada */
+.pase { padding: 14px 16px 16px; margin-bottom: 14px; border: 2px solid color-mix(in srgb, var(--marca) 45%, var(--borde)); }
+.pase h2 { margin-top: 0; }
+.paseCodigo { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px; border-radius: var(--radio-s); background: var(--marca-suave); text-align: center; }
+.paseCodigo small { color: var(--sub); font-size: 0.8rem; }
+.paseCodigo b { font-size: 2rem; letter-spacing: 0.18em; color: var(--marca); font-variant-numeric: tabular-nums; }
+.paseHorario { list-style: none; margin: 12px 0; padding: 0 0 0 16px; border-left: 3px solid var(--marca); display: grid; gap: 10px; }
+.paseHorario li { display: flex; flex-direction: column; }
+.paseHorario small { color: var(--sub); font-size: 0.8rem; }
+.paseDireccion { margin: 0 0 12px; }
+.paseDireccion p { margin: 4px 0 0; }
+.paseBotones { display: grid; gap: 8px; }
+.paseBotones .boton, .paseBotones .botonSec { width: 100%; text-decoration: none; text-align: center; }
+
+/* Panel de Mi cuenta */
+.panelCuenta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 0; text-align: left; }
+.panelDato { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; color: inherit; text-decoration: none; min-width: 0; }
+.panelDato:hover { border-color: color-mix(in srgb, var(--marca) 35%, var(--borde)); }
+.panelDato small { color: var(--sub); font-size: 0.78rem; font-weight: 600; }
+.panelDato b { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.panelDato span { color: var(--sub); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panelDato .panelTexto { font-size: 1.05rem; }
+.panelTexto::first-letter { text-transform: uppercase; }
+.panelAncho { grid-column: 1 / -1; }
+.panelAlerta { border-color: color-mix(in srgb, var(--ambar) 60%, var(--borde)); background: color-mix(in srgb, var(--ambar) 10%, var(--superficie)); }
+@media (min-width: 700px) {
+  .panelCuenta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .panelAncho { grid-column: auto; }
+}
+.grupoReservas { display: flex; align-items: center; gap: 6px; margin: 14px 0 8px; font-size: 0.78rem; font-weight: 750; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sub); }
+.grupoReservas span { padding: 0 7px; border-radius: 999px; background: var(--superficie-2); font-size: 0.72rem; }
+.verMas { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 1px dashed var(--borde); border-radius: var(--radio-s); background: none; color: var(--sub); font: inherit; font-weight: 600; cursor: pointer; }
+.verMas:hover { color: var(--texto); border-color: var(--sub); }
+
+/* Pago en la app */
+.bloquePago { padding: 14px 16px 16px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+.bloquePago h2, .bloquePago p { margin: 0; }
+.bloquePago .boton { width: 100%; }
+.etiquetaPrueba { flex: none; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ambar) 18%, transparent); color: var(--texto); font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
+.notaTarifa { display: block; margin-top: 2px; font-size: 0.74rem; color: var(--sub); }
+
 /* Tablas de las páginas legales */
 .tablaLegal { overflow-x: auto; margin: 8px 0 16px; }
 .tablaLegal table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -337,3 +396,161 @@
 .destinoIr { flex: none; background: var(--marca); color: #fff; border-radius: 999px; padding: 8px 12px; font-size: 0.85rem; font-weight: 650; text-decoration: none; }
 .enlaceBoton { border: 0; background: none; padding: 0; color: var(--marca); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 .ancla { scroll-margin-top: 76px; }
+
+/* Calendario de disponibilidad (reservar y gestionar un garaje) */
+.calendario { margin-top: 10px; }
+.calCab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.calCab strong { font-size: 1rem; }
+.calCab strong::first-letter { text-transform: uppercase; }
+.calCab button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); font-size: 1.3rem; line-height: 1; cursor: pointer; }
+.calCab button:disabled { opacity: 0.35; cursor: default; }
+.calRejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calSemana { text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--sub); padding-bottom: 2px; }
+.calDia {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-height: 42px; padding: 2px 0; border-radius: 10px; border: 1.5px solid transparent; font: inherit; font-size: 0.9rem;
+  font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; color: var(--texto); background: var(--superficie-2);
+}
+.calDia:disabled { cursor: default; }
+.calLibre { background: var(--marca-suave); color: var(--marca-fuerte); }
+.calParcial { background: color-mix(in srgb, var(--ambar) 18%, var(--superficie)); }
+.calOcupado { background: var(--superficie-2); color: var(--sub); text-decoration: line-through; }
+.calCerrado { background: transparent; color: var(--sub); border-color: var(--borde); border-style: dashed; }
+.calBloqueado { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--rojo) 14%, transparent) 0 4px, transparent 4px 8px); color: var(--rojo); }
+.calPasado { background: transparent; color: color-mix(in srgb, var(--sub) 55%, transparent); }
+.calHoy span { text-decoration: underline; text-underline-offset: 3px; }
+.calElegido { border-color: var(--texto); box-shadow: 0 0 0 2px var(--superficie), 0 0 0 4px var(--texto); }
+.calMarca { display: flex; gap: 2px; height: 6px; }
+.calMarca i { width: 5px; height: 5px; border-radius: 50%; background: var(--marca); }
+.calMarca i.calPendiente { background: var(--ambar); }
+.calLeyenda { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; font-size: 0.76rem; color: var(--sub); }
+.calLeyenda span { display: inline-flex; align-items: center; gap: 5px; }
+.calMuestra { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid transparent; }
+@media (prefers-color-scheme: dark) {
+  .calLibre { color: var(--marca); }
+}
+
+/* Huecos libres de un día (se pueden tocar para elegirlos) */
+.huecos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.85rem; color: var(--sub); }
+.hueco { padding: 4px 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--marca) 45%, var(--borde)); background: var(--marca-suave); color: var(--marca-fuerte); font: inherit; font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; }
+@media (prefers-color-scheme: dark) { .hueco { color: var(--marca); } }
+
+/* Editor del horario semanal */
+.horario { display: grid; gap: 6px; margin-top: 10px; }
+.horarioDia { display: grid; grid-template-columns: 68px minmax(0, 1fr); align-items: center; gap: 6px; min-height: 40px; }
+.horarioDia > label { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 0.9rem; }
+.horarioDia > label input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--marca); }
+.horarioHoras { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 38px; align-items: center; gap: 5px; min-width: 0; font-size: 0.85rem; color: var(--sub); }
+.horarioHoras select { width: 100%; min-width: 0; padding: 7px 6px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); font: inherit; font-size: 0.88rem; }
+.horarioHoras button { border: 0; background: none; color: var(--marca); font: inherit; font-weight: 650; font-size: 0.8rem; cursor: pointer; white-space: nowrap; padding: 4px 0; }
+
+/* Calendario del dueño: detalle del día elegido */
+.diaDetalle { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--borde); }
+.diaDetalle h3 { margin: 0 0 4px; font-size: 1rem; }
+.diaDetalle h3::first-letter { text-transform: uppercase; }
+.diaDetalle ul { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.diaDetalle li a { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--superficie-2); color: var(--texto); text-decoration: none; font-size: 0.9rem; }
+.diaDetalle .acciones { margin-top: 12px; justify-content: flex-start; }
+.diaElegido { margin: 10px 0 0; font-size: 0.92rem; }
+.diaElegido b::first-letter { text-transform: uppercase; }
+
+/* Mis garajes en el móvil: los botones en su propia fila, a lo ancho */
+@media (max-width: 560px) {
+  .accionesGaraje { flex: 1 1 100%; margin-left: 0; }
+  .accionesGaraje > a, .accionesGaraje > button { flex: 1 1 auto; text-align: center; padding: 7px 9px; }
+  .accionesGaraje > .botonPeligro { flex: none; }
+}
+
+/* Reserva instantánea */
+.etiquetaInstantanea { display: inline-block; width: fit-content; margin-top: 4px; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ambar) 20%, transparent); color: var(--texto); font-size: 0.78rem; font-weight: 700; }
+.checkDestacado { align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--superficie-2); }
+.checkDestacado input { flex: none; margin-top: 2px; }
+.checkDestacado span { display: flex; flex-direction: column; gap: 3px; }
+.checkDestacado small { color: var(--sub); font-size: 0.82rem; line-height: 1.35; }
+
+/* Valoraciones */
+.valorar { padding: 16px; margin-top: 14px; }
+.estrellas { display: flex; align-items: center; gap: 2px; margin: 4px 0 2px; }
+.estrellas button { border: 0; background: none; font-size: 2.1rem; line-height: 1; padding: 2px; cursor: pointer; }
+.estrellaOn { color: var(--ambar); }
+.estrellaOff { color: color-mix(in srgb, var(--sub) 35%, transparent); }
+.estrellas .sub { margin-left: 8px; font-weight: 650; }
+.valorar .boton { margin-top: 12px; width: 100%; }
+.estrellasFijas { color: var(--ambar); letter-spacing: 1px; }
+.etiquetaValorar { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ambar) 18%, transparent); color: var(--texto); font-size: 0.74rem; }
+.opiniones { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.opiniones li { padding: 10px 12px; border-radius: 12px; background: var(--superficie-2); font-size: 0.9rem; }
+.opiniones li p { margin: 4px 0 0; }
+.opiniones li small { color: var(--sub); }
+.opiniones :global(.denunciar-enlace) { display: inline-block; margin: 6px 0 0; font-size: 0.74rem; }
+
+/* Página para dueños: calculadora y preguntas */
+.portada { margin-bottom: 14px; }
+.etiquetaPortada2 { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--marca-suave); color: var(--marca-fuerte); font-size: 0.8rem; font-weight: 700; }
+.calculadora { padding: 16px; }
+.calculadora .chips { margin-bottom: 0; padding-bottom: 4px; flex-wrap: wrap; overflow: visible; }
+.calculadora .campo > small { font-weight: 500; }
+.deslizador { width: 100%; accent-color: var(--marca); padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; }
+.resultadoCalculo { display: flex; flex-direction: column; gap: 2px; margin: 16px 0 6px; padding: 14px 16px; border-radius: 14px; background: var(--marca-suave); }
+.resultadoCalculo small { color: var(--sub); font-weight: 600; }
+.resultadoCalculo b { font-size: 1.9rem; line-height: 1.1; letter-spacing: -0.02em; color: var(--marca-fuerte); }
+.resultadoCalculo span { color: var(--sub); font-size: 0.85rem; }
+.botonAncho { display: block; width: 100%; text-align: center; text-decoration: none; margin-top: 12px; }
+.pasosDueno { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 10px; line-height: 1.45; }
+.pregunta { border-top: 1px solid var(--borde); padding: 10px 0; }
+.pregunta:first-of-type { border-top: 0; }
+.pregunta summary { cursor: pointer; font-weight: 700; }
+.pregunta p { margin: 8px 0 0; color: var(--sub); line-height: 1.5; }
+.alCentro { text-align: center; margin: 18px 0; }
+.alCentro .boton { text-decoration: none; display: inline-block; }
+.botonCompartir { margin: 0 0 12px; padding: 8px 14px; font-size: 0.9rem; }
+@media (prefers-color-scheme: dark) {
+  .resultadoCalculo b, .etiquetaPortada2 { color: var(--marca); }
+}
+
+/* Mi coche (He aparcado aquí) y ticket de la ORA */
+.miCoche { padding: 14px 16px; margin: 4px 0 14px; text-align: left; }
+.miCocheCab { display: flex; gap: 12px; align-items: center; }
+.miCocheCab > span { font-size: 1.8rem; flex: none; }
+.miCocheCab p { margin: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.35; }
+.miCocheCab small { color: var(--sub); font-size: 0.85rem; }
+.miCoche .botonAncho { margin-top: 10px; }
+.ticket, .ticketPoco, .ticketCaducado, .ticketNuevo { margin-top: 12px; padding: 10px 12px; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; }
+.ticket { background: var(--marca-suave); }
+.ticketPoco { background: color-mix(in srgb, var(--ambar) 20%, var(--superficie)); }
+.ticketCaducado { background: color-mix(in srgb, var(--rojo) 14%, var(--superficie)); }
+.ticket small, .ticketPoco small, .ticketCaducado small, .ticketNuevo > small { color: var(--sub); }
+.ticketNuevo { background: var(--superficie-2); }
+.ticketNuevo .chips { margin: 4px 0 0; padding-bottom: 0; }
+.ticketBotones { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+.ticketHora { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 0.9rem; }
+.ticketHora label { display: flex; align-items: center; gap: 8px; flex: 1; }
+.ticketHora input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); font: inherit; }
+.ticketHora .botonSec { padding: 8px 14px; font-size: 0.9rem; }
+.miCocheBotones { display: flex; gap: 8px; margin-top: 12px; }
+.miCocheBotones > * { flex: 1; text-align: center; text-decoration: none; }
+
+/* Gasolineras favoritas */
+.consejo { margin: 0 0 12px; font-size: 0.85rem; color: var(--sub); }
+.misGasolineras { padding: 12px 14px; margin-bottom: 14px; }
+.misGasolineras h2 small { color: var(--sub); font-weight: 600; font-size: 0.85rem; }
+.misGasolineras ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.misGasolineras li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.favorita .derecha small { white-space: nowrap; }
+.favorita .info span.baja, .favorita .info span.sube { white-space: normal; }
+.favorita { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); border-radius: 12px; padding: 8px 10px; font: inherit; cursor: pointer; }
+.favorita:disabled { cursor: default; }
+.favorita .derecha { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex: none; }
+.precioFav { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.baja { color: var(--marca); font-weight: 700; font-size: 0.75rem; }
+.sube { color: var(--rojo); font-weight: 700; font-size: 0.75rem; }
+.quitarFav { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--superficie-2); color: var(--sub); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+
+/* Coche eléctrico: filtros, leyenda y potencia */
+.filtrosEv { margin-bottom: 12px; }
+.filtrosEv .chips { margin-bottom: 0; padding-bottom: 6px; }
+.leyendaEv { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 6px; padding: 0; font-size: 0.76rem; color: var(--sub); }
+.leyendaEv li { display: inline-flex; align-items: center; gap: 6px; }
+.leyendaEv i { width: 12px; height: 12px; border-radius: 4px; }
+.notaEv { margin: 0; font-size: 0.76rem; color: var(--sub); }
+.potencia { font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
