@@ -1,0 +1,29 @@
+# Descarga los puntos de recarga de coche eléctrico (datos oficiales del MITECO publicados por la DGT)
+# y los guarda en Supabase una vez al día. Usa los mismos secrets que "Importar precios".
+name: Importar cargadores
+
+on:
+  schedule:
+    - cron: "40 5 * * *" # cada día a las 05:40 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: importar-cargadores
+  cancel-in-progress: false
+
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Importar puntos de recarga (si falla, se mantiene el último dato guardado)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/importar-cargadores.mts
